@@ -26,7 +26,7 @@ Create `dep-check.json` for your Golang app:
 And check dependencies:
 ```sh
 deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/v0.0.5/src/dep-check.ts \
+	https://raw.githubusercontent.com/zored/deno/v0.0.6/src/dep-check.ts \
 	$PWD \
 	$PWD/dep-check.json
 ```
@@ -37,6 +37,6 @@ Lint Golang according to some advanced rules:
 
 ```sh
 deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/v0.0.5/src/go-lint.ts \
+	https://raw.githubusercontent.com/zored/deno/v0.0.6/src/go-lint.ts \
 	$PWD
 ```
