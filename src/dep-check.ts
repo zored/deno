@@ -11,19 +11,22 @@ async function main() {
     const deps = await new DepFactory().allByPath(path, path.replace(/\/[^/]+$/, ''))
     const depsByDest = new DepGroup().byDestination(deps)
     const checker = await RuleChecker.fromPath(rulesPath)
-    if (checker.check(depsByDest, deps)) {
+    const errorMessage = checker.check(depsByDest, deps)
+    if (errorMessage.length === 0) {
         return
     }
 
+    console.log(errorMessage)
     Deno.exit(1)
 }
 
 type Package = string
 
 type LayerConfig = string | string[]
+type LayersName = string
 
 interface Rules {
-    layers: LayerConfig[],
+    layers: Record<LayersName, LayerConfig[]>,
 }
 
 class Layer {
@@ -52,30 +55,34 @@ class Layer {
 }
 
 class RuleChecker {
-    private layers: Layer[]
+    private readonly layers: [LayersName, Layer[]][] = []
 
     constructor(private rules: Rules) {
-        this.layers = rules.layers.map(layer => new Layer(layer))
+        Object.entries(rules.layers).forEach(
+            ([name, layers]) => this.layers.push([name, layers.map(layer => new Layer(layer))])
+        )
     }
 
-    check(depsByDest: Dep[], deps: Dep[]): boolean {
-        return this.checkLayers(depsByDest, deps)
+    check(depsByDest: Dep[], deps: Dep[]): string {
+        return this.layers
+            .map(([name, layers]) => this.checkLayers(name, layers, depsByDest, deps))
+            .join('\n\n').trim()
     }
 
-    private checkLayers(depsByDest: Dep[], fileDeps: Dep[]): boolean {
+    private checkLayers(layerName: string, layers: Layer[], depsByDest: Dep[], fileDeps: Dep[]): string {
         const depth = 1
-        const innerLayers = this.layers.slice(depth)
+        const innerLayers = layers.slice(depth)
         const failures: [Dep, Layer][] = depsByDest
             .map((dep): [Dep, number] => [dep, innerLayers.findIndex(layer => layer.test(dep.destination))])
             .filter(([, index]) => index > -1)
-            .map(([dep, index]): [Dep, Layer | undefined] => [dep, this.layers
+            .map(([dep, index]): [Dep, Layer | undefined] => [dep, layers
                 .slice(0, index + depth)
                 .find(layer => dep.sources.some(source => layer.test(source)))
             ])
             .filter((a): a is [Dep, Layer] => a[1] !== undefined)
 
         if (failures.length === 0) {
-            return true
+            return ''
         }
         const message = failures
             .map(([dep, layer]): [Dep, Layer, string[]] => [dep, layer, fileDeps
@@ -88,8 +95,7 @@ class RuleChecker {
             )
             .join('\n\n')
 
-        console.log(`${red(`You have package dependency flaws 😨\n\n`)}${message}`)
-        return false
+        return `${red(`You have layer ${bold(layerName)} dependency flaws 😨\n\n`)}${message}`
     }
 
     static async fromPath(rulesPath: string): Promise<RuleChecker> {
