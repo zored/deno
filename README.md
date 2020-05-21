@@ -26,7 +26,17 @@ Create `dep-check.json` for your Golang app:
 And check dependencies:
 ```sh
 deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/v0.0.4/src/dep-check.ts \
+	https://raw.githubusercontent.com/zored/deno/v0.0.5/src/dep-check.ts \
 	$PWD \
 	$PWD/dep-check.json
+```
+
+## go-lint
+Lint Golang according to some advanced rules:
+- Multiline errors.
+
+```sh
+deno run --allow-read \
+	https://raw.githubusercontent.com/zored/deno/v0.0.5/src/go-lint.ts \
+	$PWD
 ```

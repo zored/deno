@@ -54,6 +54,10 @@ class Layer {
     }
 }
 
+type DependsOnChild = boolean
+type LayerIndex = number
+type TailLayerIndex = number
+
 class RuleChecker {
     private readonly layers: [LayersName, Layer[]][] = []
 
@@ -72,24 +76,39 @@ class RuleChecker {
     private checkLayers(layerName: string, layers: Layer[], depsByDest: Dep[], fileDeps: Dep[]): string {
         const depth = 1
         const innerLayers = layers.slice(depth)
-        const failures: [Dep, Layer][] = depsByDest
-            .map((dep): [Dep, number] => [dep, innerLayers.findIndex(layer => layer.test(dep.destination))])
+        const failures: [Dep, Layer[]][] = depsByDest
+            .map((dep): [Dep, TailLayerIndex] => [dep, innerLayers.findIndex(layer => layer.test(dep.destination))])
             .filter(([, index]) => index > -1)
-            .map(([dep, index]): [Dep, Layer | undefined] => [dep, layers
-                .slice(0, index + depth)
-                .find(layer => dep.sources.some(source => layer.test(source)))
+            .map(([dep, index]): [Dep, [DependsOnChild, LayerIndex][]] => [
+                dep,
+                layers
+                    .slice(0, index + depth)
+                    .map((layer, layerIndex) => [
+                        dep.sources.some(source => layer.test(source)),
+                        layerIndex,
+                    ])
             ])
-            .filter((a): a is [Dep, Layer] => a[1] !== undefined)
+            .map(([dep, layerResults]): [Dep, Layer[]] => [
+                dep,
+                layerResults
+                    .filter(([dependsOnChild]) => dependsOnChild)
+                    .map(([, layerIndex]) => layers[layerIndex]),
+            ])
+            .filter(([, layers]) => layers.length > 0)
 
         if (failures.length === 0) {
             return ''
         }
         const message = failures
-            .map(([dep, layer]): [Dep, Layer, string[]] => [dep, layer, fileDeps
-                .filter(fileDep => fileDep.destination === dep.destination)
-                .filter(fileDeps => fileDeps.sources.some(source => layer.test(source)))
-                .map(({file}) => file)
-                .filter((file): file is string => file !== undefined)])
+            .flatMap(([dep, layers]) => layers.map((layer): [Dep, Layer, string[]] => [
+                dep,
+                layer,
+                fileDeps
+                    .filter(fileDep => fileDep.destination === dep.destination)
+                    .filter(fileDeps => fileDeps.sources.some(source => layer.test(source)))
+                    .map(({file}) => file)
+                    .filter((file): file is string => file !== undefined)
+            ]))
             .map(([dep, layer, files]) =>
                 `${bold(dep.toString())} 👈 ${bold(layer.toString())} 🙅‍♂️:\n` + files.map(file => `- ${file}`).join('\n')
             )
