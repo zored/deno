@@ -64,7 +64,7 @@ class RuleChecker {
             .filter((a): a is [Dep, Layer] => a[1] !== undefined)
 
         if (failures.length === 0) {
-            return false
+            return true
         }
         const message = failures
             .map(([dep, layer]): [Dep, Layer, string[]] => [dep, layer, fileDeps
@@ -78,7 +78,7 @@ class RuleChecker {
             .join('\n\n')
 
         console.log(`${red(`You have package dependency flaws 😨\n\n`)}${message}`)
-        return true
+        return false
     }
 
     static async fromPath(rulesPath: string): Promise<RuleChecker> {
