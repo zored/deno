@@ -20,23 +20,34 @@ async function main() {
 
 type Package = string
 
+type LayerConfig = string | string[]
+
 interface Rules {
-    layers: string[],
+    layers: LayerConfig[],
 }
 
 class Layer {
-    private regexp: RegExp
+    private readonly patterns: RegExp[]
+    private readonly name: string
 
-    constructor(private str: string) {
-        this.regexp = new RegExp(str + '.*')
+    constructor(private layerOrLayers: LayerConfig) {
+        const layers: string[] = []
+        if (typeof layerOrLayers == 'string') {
+            layers.push(layerOrLayers)
+        } else {
+            layers.push(...layerOrLayers)
+        }
+
+        this.patterns = layers.map(s => new RegExp(s + '.*'))
+        this.name = layers.join(' or ')
     }
 
-    test(s: string): boolean {
-        return this.regexp.test(s)
+    test(pkg: string): boolean {
+        return this.patterns.some(pattern => pattern.test(pkg))
     }
 
     toString() {
-        return this.str
+        return this.name
     }
 }
 
