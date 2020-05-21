@@ -11,7 +11,11 @@ async function main() {
     const deps = await new DepFactory().allByPath(path, path.replace(/\/[^/]+$/, ''))
     const depsByDest = new DepGroup().byDestination(deps)
     const checker = await RuleChecker.fromPath(rulesPath)
-    checker.check(depsByDest, deps)
+    if (checker.check(depsByDest, deps)) {
+        return
+    }
+
+    Deno.exit(1)
 }
 
 type Package = string
@@ -43,11 +47,11 @@ class RuleChecker {
         this.layers = rules.layers.map(layer => new Layer(layer))
     }
 
-    check(depsByDest: Dep[], deps: Dep[]) {
-        this.checkLayers(depsByDest, deps)
+    check(depsByDest: Dep[], deps: Dep[]): boolean {
+        return this.checkLayers(depsByDest, deps)
     }
 
-    private checkLayers(depsByDest: Dep[], fileDeps: Dep[]): void {
+    private checkLayers(depsByDest: Dep[], fileDeps: Dep[]): boolean {
         const depth = 1
         const innerLayers = this.layers.slice(depth)
         const failures: [Dep, Layer][] = depsByDest
@@ -59,7 +63,9 @@ class RuleChecker {
             ])
             .filter((a): a is [Dep, Layer] => a[1] !== undefined)
 
-
+        if (failures.length === 0) {
+            return false
+        }
         const message = failures
             .map(([dep, layer]): [Dep, Layer, string[]] => [dep, layer, fileDeps
                 .filter(fileDep => fileDep.destination === dep.destination)
@@ -72,6 +78,7 @@ class RuleChecker {
             .join('\n\n')
 
         console.log(`${red(`You have package dependency flaws 😨\n\n`)}${message}`)
+        return true
     }
 
     static async fromPath(rulesPath: string): Promise<RuleChecker> {
