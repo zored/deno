@@ -1,35 +1,74 @@
 import { parse, Args } from "https://deno.land/std/flags/mod.ts";
-const { args, exit } = Deno;
+import { green, red } from "https://deno.land/std@0.52.0/fmt/colors.ts";
+const { args, exit, run } = Deno;
 
-export type Command = (tailArgs: Args) => void;
+type CommandSync = (tailArgs: Args) => void;
+type CommandAsync = (tailArgs: Args) => Promise<any>;
+export type Command = CommandSync | CommandAsync;
+
+export class Runner {
+  async run(command: string) {
+    const process = run({
+      cmd: command.split(" "),
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+    const { code } = await process.status();
+    if (code !== 0) {
+      throw new Error("Command failed");
+    }
+  }
+}
+
+export interface ILogger {
+  success(s: string): void;
+  error(s: string): void;
+}
+
+export class Logger implements ILogger {
+  success(s: string): void {
+    console.log(green(s));
+  }
+  error(s: string): void {
+    console.error(red(s));
+  }
+}
 
 export class Commands {
-  constructor(private commands: Record<string, Command>) {}
+  constructor(
+    private commands: Record<string, Command>,
+    private logger: ILogger = new Logger(),
+  ) {}
 
-  runAndExit(): void {
-    exit(this.run());
+  async runAndExit(): Promise<void> {
+    exit(await this.run());
   }
-  run(): number {
+  async run(): Promise<number> {
     const commandArgs = parse(args);
     const [name, ...tail] = commandArgs._;
     commandArgs._ = tail;
 
     const command = this.commands[name];
     if (command) {
-      return this.runOne(command, commandArgs);
+      return await this.runOne(name, command, commandArgs);
     }
     const names = Object.keys(this.commands).join(", ");
-    console.error(`Unknown command: ${name}.\nExpected commands: ${names}`);
+    this.logger.error(`Unknown command: ${name}.\nExpected commands: ${names}`);
+
     return 1;
   }
 
-  private runOne(command: Command, args: Args) {
+  private async runOne(name: (string | number), command: Command, args: Args) {
     try {
-      command(args);
+      const output = command(args);
+      if (output instanceof Promise) {
+        await output;
+      }
     } catch (e) {
       console.error(`Command run error!`, e);
       return 1;
     }
+    this.logger.success(`Command "${name}" succeeded.`);
     return 0;
   }
 }
