@@ -1,0 +1,66 @@
+import { parse, Args } from "https://deno.land/std/flags/mod.ts";
+const { writeTextFileSync, chmodSync } = Deno;
+
+export type GitHookName =
+  | "applypatch-msg"
+  | "pre-applypatch"
+  | "post-applypatch"
+  | "pre-commit"
+  | "prepare-commit-msg"
+  | "commit-msg"
+  | "post-commit"
+  | "pre-rebase"
+  | "post-checkout"
+  | "post-merge"
+  | "pre-receive"
+  | "update"
+  | "post-receive"
+  | "post-update"
+  | "pre-auto-gc"
+  | "post-rewrite"
+  | "pre-push";
+
+export type GitHookHandler = (args: Args) => void;
+
+export class GitHooks {
+  private readonly handlers: Partial<Record<GitHookName, GitHookHandler>> = {};
+
+  constructor(private scriptPath = "./run.ts hooks") {}
+
+  setHandler(hook: GitHookName, handler: GitHookHandler): GitHooks {
+    this.handlers[hook] = handler;
+    return this;
+  }
+
+  run(args: Args): void {
+    const { _ } = args;
+    if (_.length === 0) {
+      this.updateHookFiles();
+      return;
+    }
+
+    const name = _[0] as GitHookName;
+    args._ = _.slice(1);
+
+    const handle = this.handlers[name];
+    if (!handle) {
+      throw new Error(`Git hook "${name}" handle is undefined.`);
+    }
+    handle(args);
+  }
+
+  private updateHookFiles(): void {
+    (Object.keys(this.handlers) as GitHookName[]).forEach((name) =>
+      this.updateHookFile(name)
+    );
+  }
+
+  private updateHookFile(name: GitHookName): void {
+    const path = `.git/hooks/${name}`;
+    writeTextFileSync(
+      path,
+      ["#!/bin/sh", `${this.scriptPath} ${name} "$@"`, ""].join("\n"),
+    );
+    chmodSync(path, 0o755);
+  }
+}
