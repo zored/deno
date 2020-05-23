@@ -15,9 +15,9 @@ export class Info {
       (match, xmlFile, xpath, contents): string => {
         return [
           "<!-- info.ts.textFromXml(`" + xmlFile + "`, `" + xpath + "`) { -->",
-          this.methods.textFromXml(xmlFile, xpath).trim(),
+          this.methods.textFromXml(xmlFile, xpath),
           "<!-- } -->",
-        ].join("\n");
+        ].join("");
       },
     );
     writeTextFileSync(file, newContents);
