@@ -4,8 +4,7 @@ const { readTextFileSync, writeTextFileSync } = Deno;
 export class Info {
   private readonly methods = new Methods();
   updateFiles(files: string[]): void {
-    files.forEach((file): void => {
-    });
+    files.forEach((file): void => this.updateFile(file));
   }
 
   private updateFile(file: string): void {
