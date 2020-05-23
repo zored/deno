@@ -14,7 +14,7 @@ export class Info {
       /<!--\s*info\.ts\.textFromXml\(\`(.+?)\`,\s*\`(.+?)\`\)\s*\{\s*-->([\s\S]+?)<!--\s*\}\s*-->/gm,
       (match, xmlFile, xpath, contents): string => {
         return [
-          "<!-- info.ts.textFromXml(`" + file + "`, `" + xpath + "`) { -->",
+          "<!-- info.ts.textFromXml(`" + xmlFile + "`, `" + xpath + "`) { -->",
           this.methods.textFromXml(xmlFile, xpath).trim(),
           "<!-- } -->",
         ].join("\n");
