@@ -1,6 +1,7 @@
 import { parse, Args } from "https://deno.land/std/flags/mod.ts";
 const { writeTextFileSync, chmodSync } = Deno;
 
+export type GitArgs = Args;
 export type GitHookName =
   | "applypatch-msg"
   | "pre-applypatch"
@@ -20,17 +21,13 @@ export type GitHookName =
   | "post-rewrite"
   | "pre-push";
 
-export type GitHookHandler = (args: Args) => void;
-
+export type GitHookHandler = (args: GitArgs) => void;
+export type GitHookHandlers = Partial<Record<GitHookName, GitHookHandler>>;
 export class GitHooks {
-  private readonly handlers: Partial<Record<GitHookName, GitHookHandler>> = {};
-
-  constructor(private scriptPath = "./run.ts hooks") {}
-
-  setHandler(hook: GitHookName, handler: GitHookHandler): GitHooks {
-    this.handlers[hook] = handler;
-    return this;
-  }
+  constructor(
+    private readonly handlers: GitHookHandlers = {},
+    private scriptPath = "./run.ts hooks",
+  ) {}
 
   run(args: Args): void {
     const { _ } = args;
