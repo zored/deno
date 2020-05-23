@@ -7,18 +7,22 @@ export class Info {
     files.forEach((file): void => this.updateFile(file));
   }
 
-  private updateFile(file: string): void {
-    const contents = readTextFileSync(file);
-    const newContents = contents.replace(
-      /<!--\s*info\.ts\.textFromXml\(\`(.+?)\`,\s*\`(.+?)\`\)\s*\{\s*-->([\s\S]+?)<!--\s*\}\s*-->/gm,
+  updateText(text: string): string {
+    return text.replace(
+      /<!--\s*info\.ts\.textFromXml\("(.+?)",\s*"(.+?)"\)\s*\{\s*-->([\s\S]+?)<!--\s*\}\s*-->/gm,
       (match, xmlFile, xpath, contents): string => {
         return [
-          "<!-- info.ts.textFromXml(`" + xmlFile + "`, `" + xpath + "`) { -->",
+          '<!-- info.ts.textFromXml("' + xmlFile + '", "' + xpath + '") { -->',
           this.methods.textFromXml(xmlFile, xpath),
-          "<!-- } -->",
+          '<!-- } -->',
         ].join("");
       },
     );
+  }
+
+  private updateFile(file: string): void {
+    const contents = readTextFileSync(file);
+    const newContents = this.updateText(contents)
     writeTextFileSync(file, newContents);
   }
 }
@@ -32,12 +36,12 @@ class Methods {
     if (!match) {
       throw new Error(`Can't support xpath ${xpath}`);
     }
-    const [, name] = match;
+    const [, tagName] = match;
 
     return node
       ?.root
       ?.children
-      .find(({ n }) => n === name)
+      .find(({ name }) => name === tagName)
       ?.content ?? "";
   }
 }
