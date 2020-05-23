@@ -13,8 +13,8 @@ export class Info {
       (match, xmlFile, xpath, contents): string => {
         return [
           '<!-- info.ts.textFromXml("' + xmlFile + '", "' + xpath + '") { -->',
-          this.methods.textFromXml(xmlFile, xpath),
-          '<!-- } -->',
+          this.methods.textFromXml(xmlFile, xpath).trim(),
+          "<!-- } -->",
         ].join("");
       },
     );
@@ -22,7 +22,7 @@ export class Info {
 
   private updateFile(file: string): void {
     const contents = readTextFileSync(file);
-    const newContents = this.updateText(contents)
+    const newContents = this.updateText(contents);
     writeTextFileSync(file, newContents);
   }
 }
