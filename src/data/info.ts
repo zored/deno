@@ -1,5 +1,5 @@
 import parse from "https://denopkg.com/nekobato/deno-xml-parser/index.ts";
-const {readTextFileSync, writeTextFileSync} = Deno;
+const { readTextFileSync, writeTextFileSync } = Deno;
 
 export class Info {
   private readonly methods = new Methods();
@@ -21,22 +21,24 @@ export class Info {
       },
     );
     writeTextFileSync(file, newContents);
-
   }
 }
 class Methods {
   textFromXml(file: string, xpath: string): string {
     const text = readTextFileSync(file);
     const node = parse(text);
-    switch (xpath) {
-      case "//description[1]":
-        return node
-          ?.root
-          ?.children
-          .find(({ name }) => name === "description")
-          ?.content ?? "";
-      default:
-        throw new Error(`Can't support xpath ${xpath}`);
+
+    // Get name:
+    const match = xpath.match(/^\/\/(.*)\[1\]$/);
+    if (!match) {
+      throw new Error(`Can't support xpath ${xpath}`);
     }
+    const [, name] = match;
+
+    return node
+      ?.root
+      ?.children
+      .find(({ n }) => n === name)
+      ?.content ?? "";
   }
 }
