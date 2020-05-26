@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read
-import { DepChecker } from "./data/dep-check.ts";
+import { DepChecker } from "./lib/dep-check.ts";
 const { args } = Deno;
 
 const [path, rulesPath] = args;

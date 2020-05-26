@@ -1,3 +1,3 @@
-export * from "./src/data/info.ts";
-export * from "./src/data/git-hook.ts";
-export * from "./src/data/command.ts";
+export * from "./src/lib/info.ts";
+export * from "./src/lib/git-hook.ts";
+export * from "./src/lib/command.ts";
