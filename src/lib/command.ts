@@ -25,7 +25,14 @@ export interface ILogger {
   error(s: string): void;
 }
 
-export class Logger implements ILogger {
+export class Silent implements ILogger {
+  success(s: string): void {
+  }
+  error(s: string): void {
+  }
+}
+
+export class ConsoleLogger implements ILogger {
   success(s: string): void {
     console.log(green(s));
   }
@@ -37,7 +44,7 @@ export class Logger implements ILogger {
 export class Commands {
   constructor(
     private commands: Record<string, Command>,
-    private logger: ILogger = new Logger(),
+    private logger: ILogger = new ConsoleLogger(),
   ) {}
 
   async runAndExit(): Promise<void> {
@@ -52,10 +59,14 @@ export class Commands {
     if (command) {
       return await this.runOne(name, command, commandArgs);
     }
-    const names = Object.keys(this.commands).join(", ");
+    const names = this.allNames().join(", ");
     this.logger.error(`Unknown command: ${name}.\nExpected commands: ${names}`);
 
     return 1;
+  }
+
+  allNames(): string[] {
+    return Object.keys(this.commands);
   }
 
   private async runOne(name: (string | number), command: Command, args: Args) {

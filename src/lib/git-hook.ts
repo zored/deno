@@ -21,7 +21,7 @@ export type GitHookName =
   | "post-rewrite"
   | "pre-push";
 
-export type OptionalPromise = Promise<void>|void
+export type OptionalPromise = Promise<void> | void;
 export type GitHookHandler = (args: GitArgs) => OptionalPromise;
 export type GitHookHandlers = Partial<Record<GitHookName, GitHookHandler>>;
 export class GitHooks {
@@ -46,7 +46,7 @@ export class GitHooks {
     }
     const result = handle(args);
     if (result instanceof Promise) {
-      await result
+      await result;
     }
   }
 

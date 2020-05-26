@@ -195,10 +195,12 @@ export class DepFactory {
     const fileExtension = matches[1];
 
     const sourceRetrievers: Record<string, (text: string) => string[]> = {
-      go: (text: string): string[] => this
-        .match(text, /import\s+\(?([\s\S]+)?\)?;/gm)
-        .flatMap(m => this.match(m, /"(.*?)"/gm)),
-      kt: (text: string): string[] => this.match(text, /import\s+(.*?)[\s|;]/gm),
+      go: (text: string): string[] =>
+        this
+          .match(text, /import\s+\(?([\s\S]+)?\)?;/gm)
+          .flatMap((m) => this.match(m, /"(.*?)"/gm)),
+      kt: (text: string): string[] =>
+        this.match(text, /import\s+(.*?)[\s|;]/gm),
     };
 
     const getSources = sourceRetrievers[fileExtension];
