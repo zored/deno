@@ -1,8 +1,10 @@
+import { CommandMap, Commands, Silent } from "./command.ts";
+
 export class CompletionGenerator {
   generate(name: string = "./run.ts"): string {
     const infoFactory = new InfoFactory();
     const self =
-      "/Users/r.akhmerov/git/github.com/zored/deno/src/shell-completion.ts complete";
+      "/Users/r.akhmerov/git/github.com/zored/deno/src/shell-completion.ts completion complete";
     const variablesString = infoFactory.getVariablesString();
     const completionName = `_${
       name.replace(/[\W]+/g, "")
@@ -12,6 +14,27 @@ export class CompletionGenerator {
 ${completionName}() { COMPREPLY=( $(${self} ${variablesString}) ) ; }
 complete -F ${completionName} ${name}
         `;
+  }
+}
+
+export class CompletionCommandFactory {
+  createAll(
+    execName = "./run.ts",
+    commandName: string = "completion",
+  ): CommandMap {
+    const print = (s: string) =>
+      Deno.stdout.writeSync(new TextEncoder().encode(s));
+    const generator = new CompletionGenerator();
+    const commands = new Commands({
+      generate: () => print(generator.generate(execName)),
+      complete: (args) =>
+        print(handler.handle(args._.map((s) => s.toString()))),
+    }, new Silent());
+    const handler: CompletionHandler = new CompletionHandler(
+      commands.allNames(),
+      2,
+    );
+    return { [commandName]: (a) => commands.run(a) };
   }
 }
 
@@ -49,7 +72,6 @@ class InfoFactory {
 
 class Info {
   private readonly wordTillCursor: string;
-  private readonly wordsTail: string[];
 
   constructor(
     private index: number,
@@ -65,15 +87,14 @@ class Info {
         .filter((i) => i >= 0),
     );
     this.wordTillCursor = lineTillCursor.substring(latestWordbreakIndex + 1);
-    this.wordsTail = this.words.slice(1)
   }
 
-  isFirstUnique(word: string): boolean {
-    if (this.wordIndex !== 1) {
+  isUnique(word: string, wordIndex = 1): boolean {
+    if (this.wordIndex !== wordIndex) {
       return false;
     }
 
-    if (this.wordsTail.includes(word)) {
+    if (this.words.slice(wordIndex).includes(word)) {
       return false;
     }
 
@@ -86,7 +107,7 @@ class Info {
 }
 
 export class CompletionHandler {
-  constructor(private setWords: string[]) {
+  constructor(private setWords: string[], private wordIndex = 1) {
   }
 
   handle(s: string[]): string {
@@ -99,6 +120,6 @@ export class CompletionHandler {
   }
 
   private getReplacementsForWordBeforeCursor(info: Info): string[] {
-    return this.setWords.filter((w) => info.isFirstUnique(w));
+    return this.setWords.filter((w) => info.isUnique(w, this.wordIndex));
   }
 }

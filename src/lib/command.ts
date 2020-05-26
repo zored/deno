@@ -5,6 +5,7 @@ const { args, exit, run } = Deno;
 type CommandSync = (tailArgs: Args) => void;
 type CommandAsync = (tailArgs: Args) => Promise<any>;
 export type Command = CommandSync | CommandAsync;
+export type CommandMap = Record<string, Command>;
 
 export class Runner {
   async run(command: string) {
@@ -43,15 +44,14 @@ export class ConsoleLogger implements ILogger {
 
 export class Commands {
   constructor(
-    private commands: Record<string, Command>,
+    private commands: CommandMap,
     private logger: ILogger = new ConsoleLogger(),
   ) {}
 
   async runAndExit(): Promise<void> {
     exit(await this.run());
   }
-  async run(): Promise<number> {
-    const commandArgs = parse(args);
+  async run(commandArgs: Args = parse(args)): Promise<number> {
     const [name, ...tail] = commandArgs._;
     commandArgs._ = tail;
 

@@ -1,15 +1,11 @@
 {
-  "index": 26,
-  "args": "shell-completion generate ",
+  "index": 30,
+  "args": "shell-completion completion ge",
   "words": [
     "shell-completion",
-    "generate",
-    ""
+    "completion",
+    "ge"
   ],
   "wordIndex": 2,
-  "wordTillCursor": "",
-  "wordsTail": [
-    "generate",
-    ""
-  ]
+  "wordTillCursor": "ge"
 }
