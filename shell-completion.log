@@ -1,0 +1,15 @@
+{
+  "index": 26,
+  "args": "shell-completion generate ",
+  "words": [
+    "shell-completion",
+    "generate",
+    ""
+  ],
+  "wordIndex": 2,
+  "wordTillCursor": "",
+  "wordsTail": [
+    "generate",
+    ""
+  ]
+}
