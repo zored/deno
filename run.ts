@@ -7,6 +7,6 @@ import {
   GitHooks,
 } from "./mod.ts";
 const test = () => new Runner().run(`deno test -A`);
-const gitHooks = new GitHooks({ "pre-commit": test });
+const gitHooks = new GitHooks({ "pre-commit": async () => await test()});
 const hooks = (args: Args) => gitHooks.run(args);
 await new Commands({ test, hooks }).runAndExit();

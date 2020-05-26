@@ -21,7 +21,8 @@ export type GitHookName =
   | "post-rewrite"
   | "pre-push";
 
-export type GitHookHandler = (args: GitArgs) => void;
+export type OptionalPromise = Promise<void>|void
+export type GitHookHandler = (args: GitArgs) => OptionalPromise;
 export type GitHookHandlers = Partial<Record<GitHookName, GitHookHandler>>;
 export class GitHooks {
   constructor(
@@ -29,7 +30,7 @@ export class GitHooks {
     private scriptPath = "./run.ts hooks",
   ) {}
 
-  run(args: Args): void {
+  async run(args: Args): Promise<void> {
     const { _ } = args;
     if (_.length === 0) {
       this.updateHookFiles();
@@ -43,7 +44,10 @@ export class GitHooks {
     if (!handle) {
       throw new Error(`Git hook "${name}" handle is undefined.`);
     }
-    handle(args);
+    const result = handle(args);
+    if (result instanceof Promise) {
+      await result
+    }
   }
 
   private updateHookFiles(): void {
