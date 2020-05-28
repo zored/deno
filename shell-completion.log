@@ -1,10 +1,10 @@
 {
-  "index": 28,
-  "args": "./src/shell-completion.ts sa",
+  "index": 30,
+  "args": "./src/shell-completion.ts samp",
   "words": [
     "./src/shell-completion.ts",
-    "sa"
+    "samp"
   ],
   "wordIndex": 1,
-  "wordTillCursor": "sa"
+  "wordTillCursor": "samp"
 }

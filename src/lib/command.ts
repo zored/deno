@@ -4,7 +4,7 @@ const { args, exit, run } = Deno;
 
 type CommandSync = (tailArgs: Args) => void;
 type CommandAsync = (tailArgs: Args) => Promise<any>;
-export interface CommandMap extends Record<string, Command>{}
+export interface CommandMap extends Record<string, Command> {}
 export type Command = CommandSync | CommandAsync | CommandMap;
 
 export class Runner {
@@ -30,7 +30,7 @@ export class Silent implements ILogger {
   success(s: string): void {
   }
   error(s: string): void {
-    console.error(s)
+    console.error(s);
   }
 }
 
@@ -43,24 +43,31 @@ export class ConsoleLogger implements ILogger {
   }
 }
 
-type Arg = (string|number)
+type Arg = (string | number);
 
 export interface ICommandsConfig {
-  name: string
-  children?: ICommandsConfig[]
+  name: string;
+  children?: ICommandsConfig[];
 }
 
 export class Commands {
   add(commands: CommandMap): void {
-    Object.keys(commands).forEach(name => this.commands[name] = commands[name]);
+    Object.keys(commands).forEach((name) =>
+      this.commands[name] = commands[name]
+    );
   }
-  getConfig(root: ICommandsConfig = {name: 'root', children: []}, commands: CommandMap = this.commands): ICommandsConfig {
-    Object.keys(commands).forEach(name => {
+  getConfig(
+    root: ICommandsConfig = { name: "root", children: [] },
+    commands: CommandMap = this.commands,
+  ): ICommandsConfig {
+    Object.keys(commands).forEach((name) => {
       const value = commands[name];
-      root.children?.push(this.isMap(value)
-        ? this.getConfig({name, children: []}, value)
-        : {name})
-    })
+      root.children?.push(
+        this.isMap(value)
+          ? this.getConfig({ name, children: [] }, value)
+          : { name },
+      );
+    });
     return root;
   }
   constructor(
@@ -72,7 +79,10 @@ export class Commands {
     exit(await this.run());
   }
 
-  async run(commandArgs: Args = parse(args), commands: CommandMap = this.commands): Promise<number> {
+  async run(
+    commandArgs: Args = parse(args),
+    commands: CommandMap = this.commands,
+  ): Promise<number> {
     const [name, ...tail] = commandArgs._;
     commandArgs._ = tail;
 
@@ -91,12 +101,16 @@ export class Commands {
   }
 
   private isMap(command: Command): command is CommandMap {
-    return typeof command !== 'function';
+    return typeof command !== "function";
   }
 
-  private async runOne(name: Arg, command: Command, args: Args): Promise<number> {
+  private async runOne(
+    name: Arg,
+    command: Command,
+    args: Args,
+  ): Promise<number> {
     if (this.isMap(command)) {
-      return this.run(args, command)
+      return this.run(args, command);
     }
 
     try {

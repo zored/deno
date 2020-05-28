@@ -7,8 +7,6 @@ import {
   GitHooks,
 } from "./mod.ts";
 
-console.log(import.meta);
-
 const test = () => new Runner().run(`deno test -A`);
 const fmt = () => new Runner().run(`deno fmt ./src`);
 const gitHooks = new GitHooks({ "pre-commit": async () => await test()});

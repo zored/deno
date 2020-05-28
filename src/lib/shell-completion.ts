@@ -1,38 +1,68 @@
-import { CommandMap, Commands, Silent } from "./command.ts";
+import { CommandMap, Commands, Silent, ICommandsConfig } from "./command.ts";
 
-export class CompletionGenerator {
-  constructor(private commandsScriptUrl: string) {
+const defaultGenerateName = "completion";
+const defaultCompleteName = "completionComplete";
+
+const print = (s: string): void => {
+  Deno.stdout.writeSync(new TextEncoder().encode(s));
+};
+
+export class Generator {
+  constructor(
+    private commandsScriptUrl: string,
+    private generateName: string = defaultGenerateName,
+  ) {
   }
   generate(name: string = "./run.ts"): string {
     const infoFactory = new InfoFactory();
-    const self = [new URL(this.commandsScriptUrl).pathname, "completionComplete"].join(' ');
+    const self = [
+      new URL(this.commandsScriptUrl).pathname,
+      this.generateName,
+    ].join(" ");
     const variablesString = infoFactory.getVariablesString();
-    const completionName = `_${
-      name.replace(/[\W]+/g, "")
-    }_zored_shell_completion`;
+    const completionPrefix = name.replace(/[\W]+/g, "");
+    const completionName = `_${completionPrefix}_zored_shell_completion`;
 
     return `
 ${completionName}() { COMPREPLY=( $(${self} ${variablesString}) ) ; }
 complete -F ${completionName} ${name}
-        `;
+`;
   }
 }
 
-const print = (s: string) => Deno.stdout.writeSync(new TextEncoder().encode(s));
-
 export class CompletionCommandFactory {
-  constructor(private commandsScriptUrl: string, private execName = "./run.ts"){}
+  constructor(
+    private commandsScriptUrl: string,
+    private execName = "./run.ts",
+    private generateName: string = defaultGenerateName,
+    private completeName: string = defaultCompleteName,
+    private write = print,
+  ) {}
   apply(commands: Commands): void {
     commands.add({
-      completion: args => print(new CompletionGenerator(this.commandsScriptUrl).generate(args['name'] ?? this.execName)),
-      completionComplete: (args) => print(
-        new CompletionHandler(() => commands
-          .getConfig()
-          .children
-          ?.map(({name})=> name) ?? []
-        ).handle(args._.map((s) => s.toString()))
-      ),
-    })
+      [this.generateName]: (args) =>
+        this.write(
+          new Generator(this.commandsScriptUrl).generate(
+            args["name"] ?? this.execName,
+          ),
+        ),
+      [this.completeName]: (args) =>
+        this.write(
+          new Completor((info) =>
+            info.fromTree(
+              this.commandsToTree(commands.getConfig().children ?? []),
+            )
+          ).run(args._.map((s) => s.toString())),
+        ),
+    });
+  }
+
+  private commandsToTree(configs: ICommandsConfig[]): IInfoTree {
+    const tree: IInfoTree = {};
+    configs.forEach(({ name, children }) =>
+      tree[name] = children ? this.commandsToTree(children) : null
+    );
+    return tree;
   }
 }
 
@@ -68,8 +98,13 @@ class InfoFactory {
   }
 }
 
-class Info {
+export interface IInfoTree {
+  [key: string]: null | IInfoTree;
+}
+
+export class Info {
   private readonly wordTillCursor: string;
+  private wordOffset = 0;
 
   constructor(
     private index: number,
@@ -87,12 +122,22 @@ class Info {
     this.wordTillCursor = lineTillCursor.substring(latestWordbreakIndex + 1);
   }
 
-  isUnique(word: string, wordIndex = 1): boolean {
-    if (this.wordIndex !== wordIndex) {
-      return false;
+  withWordOffset(wordOffset: number): Info {
+    this.wordOffset = wordOffset;
+    return this;
+  }
+  fromTree(tree: IInfoTree, wordIndex = 0): string[] {
+    if (this.wordIndex - this.wordOffset === wordIndex) {
+      return Object.keys(tree);
     }
 
-    if (this.words.slice(wordIndex).includes(word)) {
+    return Object.values(tree)
+      .filter((v): v is IInfoTree => v !== null)
+      .flatMap((tree) => this.fromTree(tree, wordIndex + 1));
+  }
+
+  isUnique(word: string): boolean {
+    if (this.words.slice(this.wordOffset).includes(word)) {
       return false;
     }
 
@@ -104,20 +149,20 @@ class Info {
   }
 }
 
-export class CompletionHandler {
-  constructor(private getWords: () => string[], private wordIndex = 1) {
-  }
+export type WordRetriever = (info: Info) => string[];
+export class Completor {
+  constructor(
+    private getWords: WordRetriever,
+    private wordOffset = 1,
+  ) {}
 
-  handle(s: string[]): string {
-    const info = new InfoFactory().create(s);
-    Deno.writeTextFileSync(
-      "/Users/r.akhmerov/git/github.com/zored/deno/shell-completion.log",
-      JSON.stringify(info, null, 2),
-    );
+  run(s: string[]): string {
+    const info = new InfoFactory().create(s).withWordOffset(this.wordOffset);
+    // Deno.writeTextFileSync('request_complete.json', JSON.stringify(info, null, 2))
     return this.getReplacementsForWordBeforeCursor(info).join(" ");
   }
 
   private getReplacementsForWordBeforeCursor(info: Info): string[] {
-    return this.getWords().filter((w) => info.isUnique(w, this.wordIndex));
+    return this.getWords(info).filter((w) => info.isUnique(w));
   }
 }
