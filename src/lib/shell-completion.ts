@@ -10,14 +10,14 @@ const print = (s: string): void => {
 export class Generator {
   constructor(
     private commandsScriptUrl: string,
-    private generateName: string = defaultGenerateName,
+    private completeName: string = defaultCompleteName,
   ) {
   }
   generate(name: string = "./run.ts"): string {
     const infoFactory = new InfoFactory();
     const self = [
       new URL(this.commandsScriptUrl).pathname,
-      this.generateName,
+      this.completeName,
     ].join(" ");
     const variablesString = infoFactory.getVariablesString();
     const completionPrefix = name.replace(/[\W]+/g, "");
