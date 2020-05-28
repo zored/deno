@@ -26,7 +26,7 @@ Create `dep-check.json` for your Golang app:
 And check dependencies:
 ```sh
 deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/master/src/dep-check.ts \
+	https://raw.githubusercontent.com/zored/deno/v0.0.23/src/dep-check.ts \
 	$PWD \
 	$PWD/dep-check.json
 ```
@@ -35,7 +35,7 @@ deno run --allow-read \
 ### shell-completion
 Autocomplete commands in SH.
 ```sh
-deno install -f https://raw.githubusercontent.com/zored/deno/master/src/shell-completion.ts
+deno install -f https://raw.githubusercontent.com/zored/deno/v0.0.23/src/shell-completion.ts
 eval "$(shell-completion completion --name=shell-completion)"
 
 # Now completion works:
@@ -50,7 +50,7 @@ Lint Golang according to some advanced rules:
 
 ```sh
 deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/master/src/go-lint.ts \
+	https://raw.githubusercontent.com/zored/deno/v0.0.23/src/go-lint.ts \
 	$PWD
 ```
 
@@ -66,6 +66,6 @@ Create `README.md`:
 ```sh
 
 deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/master/src/info.ts \
+	https://raw.githubusercontent.com/zored/deno/v0.0.23/src/info.ts \
 	README.md
 ```
