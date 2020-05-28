@@ -37,8 +37,8 @@ const lineToSh = (line: string): string[] => {
     COMP_LINE,
     COMP_WORDBREAKS,
     ...COMP_WORDS,
-  ]
-}
+  ];
+};
 
 test("completor sh", () => {
   const tree: WordRetriever = (i) => {
@@ -64,7 +64,6 @@ test("completor sh", () => {
   ];
   input.forEach(
     ([line, options, depth, completions]) => {
-
       assertEquals(
         completions,
         new Completor(options, depth).run(lineToSh(line)),
@@ -82,7 +81,9 @@ test("command", async () => {
     "completur",
     (s: string) => assertEquals("world", s),
   ).apply(commands);
-  
-  const result = commands.run({ _: ["completur"].concat(lineToSh("app.ts goodbye cruel w|")) });
+
+  const result = commands.run(
+    { _: ["completur"].concat(lineToSh("app.ts goodbye cruel w|")) },
+  );
   assertEquals(0, await result);
 });
