@@ -1,10 +1,11 @@
 import { CommandMap, Commands, Silent } from "./command.ts";
 
 export class CompletionGenerator {
+  constructor(private commandsScriptUrl: string) {
+  }
   generate(name: string = "./run.ts"): string {
     const infoFactory = new InfoFactory();
-    const self =
-      "/Users/r.akhmerov/git/github.com/zored/deno/src/shell-completion.ts completion complete";
+    const self = [new URL(this.commandsScriptUrl).pathname, "completionComplete"].join(' ');
     const variablesString = infoFactory.getVariablesString();
     const completionName = `_${
       name.replace(/[\W]+/g, "")
@@ -17,24 +18,21 @@ complete -F ${completionName} ${name}
   }
 }
 
+const print = (s: string) => Deno.stdout.writeSync(new TextEncoder().encode(s));
+
 export class CompletionCommandFactory {
-  createAll(
-    execName = "./run.ts",
-    commandName: string = "completion",
-  ): CommandMap {
-    const print = (s: string) =>
-      Deno.stdout.writeSync(new TextEncoder().encode(s));
-    const generator = new CompletionGenerator();
-    const commands = new Commands({
-      generate: () => print(generator.generate(execName)),
-      complete: (args) =>
-        print(handler.handle(args._.map((s) => s.toString()))),
-    }, new Silent());
-    const handler: CompletionHandler = new CompletionHandler(
-      commands.allNames(),
-      2,
-    );
-    return { [commandName]: (a) => commands.run(a) };
+  constructor(private commandsScriptUrl: string, private execName = "./run.ts"){}
+  apply(commands: Commands): void {
+    commands.add({
+      completion: args => print(new CompletionGenerator(this.commandsScriptUrl).generate(args['name'] ?? this.execName)),
+      completionComplete: (args) => print(
+        new CompletionHandler(() => commands
+          .getConfig()
+          .children
+          ?.map(({name})=> name) ?? []
+        ).handle(args._.map((s) => s.toString()))
+      ),
+    })
   }
 }
 
@@ -107,7 +105,7 @@ class Info {
 }
 
 export class CompletionHandler {
-  constructor(private setWords: string[], private wordIndex = 1) {
+  constructor(private getWords: () => string[], private wordIndex = 1) {
   }
 
   handle(s: string[]): string {
@@ -120,6 +118,6 @@ export class CompletionHandler {
   }
 
   private getReplacementsForWordBeforeCursor(info: Info): string[] {
-    return this.setWords.filter((w) => info.isUnique(w, this.wordIndex));
+    return this.getWords().filter((w) => info.isUnique(w, this.wordIndex));
   }
 }

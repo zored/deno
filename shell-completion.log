@@ -1,11 +1,10 @@
 {
-  "index": 30,
-  "args": "shell-completion completion ge",
+  "index": 28,
+  "args": "./src/shell-completion.ts sa",
   "words": [
-    "shell-completion",
-    "completion",
-    "ge"
+    "./src/shell-completion.ts",
+    "sa"
   ],
-  "wordIndex": 2,
-  "wordTillCursor": "ge"
+  "wordIndex": 1,
+  "wordTillCursor": "sa"
 }
