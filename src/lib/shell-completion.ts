@@ -15,8 +15,11 @@ export class Generator {
   }
   generate(name: string = "./run.ts"): string {
     const infoFactory = new InfoFactory();
+    const url = new URL(this.commandsScriptUrl);
     const self = [
-      new URL(this.commandsScriptUrl).pathname,
+      url.protocol.match(/^https?\:$/)
+        ? `~/.deno/bin/` + url.pathname.split('/').pop()?.split('.').pop()
+        : url.pathname,
       this.completeName,
     ].join(" ");
     const variablesString = infoFactory.getVariablesString();
