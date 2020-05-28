@@ -18,7 +18,7 @@ export class Generator {
     const url = new URL(this.commandsScriptUrl);
     const self = [
       url.protocol.match(/^https?\:$/)
-        ? `~/.deno/bin/` + url.pathname.split('/').pop()?.split('.').pop()
+        ? `~/.deno/bin/` + url.pathname.split('/').pop()?.split('.').shift()
         : url.pathname,
       this.completeName,
     ].join(" ");
