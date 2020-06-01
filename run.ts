@@ -7,11 +7,15 @@ import {
   GitHooks,
 } from "./mod.ts";
 
+const format = (check = false) =>
+  new Runner().run(`deno fmt ${check ? "--check " : ""}./src ./run.ts`);
+
 const test = () => new Runner().run(`deno test -A`);
-const fmt = () => new Runner().run(`deno fmt ./src`);
-const gitHooks = new GitHooks({ "pre-commit": async () => {
-  await fmt()
-  await test()
-}});
+const gitHooks = new GitHooks({
+  "pre-commit": async () => {
+    await format(true);
+    await test();
+  },
+});
 const hooks = (args: Args) => gitHooks.run(args);
-await new Commands({ test, hooks, fmt }).runAndExit();
+await new Commands({ test, hooks, fmt: () => format() }).runAndExit();
