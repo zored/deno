@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run
 import { exec, OutputMode } from "https://deno.land/x/exec/mod.ts";
-const {exit} = Deno;
+const { exit } = Deno;
 const responses = await Promise.all([
   "chromedriver --version",
   '"/Applications/Google\ Chrome.app/Contents/MacOS/Google Chrome" --version',
@@ -13,6 +13,9 @@ const getVersion = (s: string): string => {
   }
   return matches[1];
 };
-const versions = responses.map((r) => getVersion(r.output)).reduce((set, v) => set.add(v), new Set());
-console.log(Array.from(versions).join('\n'));
-Deno.exit(versions.size > 1 ? 1 : 0)
+const versions = responses.map((r) => getVersion(r.output)).reduce(
+  (set, v) => set.add(v),
+  new Set(),
+);
+console.log(Array.from(versions).join("\n"));
+Deno.exit(versions.size > 1 ? 1 : 0);
