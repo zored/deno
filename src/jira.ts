@@ -10,10 +10,10 @@ const cache = new IssuesCacher(
   new Repo((env("HOME") ?? ".") + "/jira-issues.json"),
 );
 
-const one = (a: CommandArgs) => cache.one(a._[0] + '', a.field || "summary");
+const one = (a: CommandArgs) => cache.one(a._[0] + "", a.field || "summary");
 
 new Commands({
   cache: () => cache.update(),
   get: async (a) => print(await one(a)),
-  getForPrompt: async (a) => print((await one(a)).replace(/[\[\]]/g, '')),
+  getForPrompt: async (a) => print((await one(a)).replace(/[\[\]]/g, "")),
 }).runAndExit();
