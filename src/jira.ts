@@ -3,7 +3,7 @@
 import { Commands, CommandArgs } from "./lib/command.ts";
 import { print } from "./lib/print.ts";
 import { Repo, BrowserClient, IssuesCacher } from "./lib/jira.ts";
-const { writeTextFile, readTextFile, env: {get: env} } = Deno;
+const { env: {get: env} } = Deno;
 
 const cache = new IssuesCacher(
   new BrowserClient(env("JIRA_HOST") ?? "", env("JIRA_COOKIES") ?? ""),
