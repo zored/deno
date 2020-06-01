@@ -2,6 +2,7 @@ import { parse, Args } from "https://deno.land/std/flags/mod.ts";
 import { green, red } from "https://deno.land/std@0.52.0/fmt/colors.ts";
 const { args, exit, run } = Deno;
 
+export type CommandArgs = Args;
 type CommandSync = (tailArgs: Args) => void;
 type CommandAsync = (tailArgs: Args) => Promise<any>;
 export interface CommandMap extends Record<string, Command> {}
