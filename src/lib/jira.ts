@@ -21,7 +21,16 @@ interface ITableIssueCache {
   issues: ITableIssue[];
 }
 
+export class IssueCacherFactory {
+  fromEnv = () =>
+    new IssuesCacher(
+      new BrowserClient(env("JIRA_HOST") ?? "", env("JIRA_COOKIES") ?? ""),
+      new Repo((env("HOME") ?? ".") + "/jira-issues.json"),
+    );
+}
+
 export class IssuesCacher {
+  private allIssues?: ITableIssue[] = undefined;
   constructor(private api: BrowserClient, private repo: Repo) {}
   async update() {
     const fresh = await this.repo.isFresh();
@@ -33,16 +42,23 @@ export class IssuesCacher {
     await this.repo.saveIssues(issues);
   }
 
-  async one(key: string, field: string): Promise<string> {
+  async one(key: string, field: string = "summary"): Promise<string> {
     if (!key) {
       throw new Error(`Specify Jira issue key!`);
     }
-    const issues = await this.repo.getIssues();
+    const issues = await this.getAllIssues();
     const issue = issues.find((i) => i.key === key);
     if (!issue) {
       throw new Error(`No issue "${key}" found in cache.`);
     }
     return issue[field as keyof ITableIssue] as string;
+  }
+
+  private async getAllIssues(): Promise<ITableIssue[]> {
+    if (this.allIssues === undefined) {
+      this.allIssues = await this.repo.getIssues();
+    }
+    return this.allIssues;
   }
 }
 
@@ -136,6 +152,7 @@ export class Repo {
       const cacheText = await readTextFile(this.path);
       return JSON.parse(cacheText);
     } catch (e) {
+      console.log(e);
       return this.newCache();
     }
   }

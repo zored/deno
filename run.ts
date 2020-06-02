@@ -8,7 +8,9 @@ import {
 } from "./mod.ts";
 
 const format = (check = false) =>
-  new Runner().run(`deno fmt ${check ? "--check " : ""}./src ./run.ts`);
+  new Runner().run(
+    `deno fmt ${check ? "--check " : ""}./src ./run.ts ./deps.ts`,
+  );
 
 const test = () => new Runner().run(`deno test -A`);
 const gitHooks = new GitHooks({

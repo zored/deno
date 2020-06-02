@@ -2,14 +2,10 @@
 
 import { Commands, CommandArgs } from "./lib/command.ts";
 import { print } from "./lib/print.ts";
-import { Repo, BrowserClient, IssuesCacher } from "./lib/jira.ts";
+import { IssueCacherFactory } from "./lib/jira.ts";
 const { env: {get: env} } = Deno;
 
-const cache = new IssuesCacher(
-  new BrowserClient(env("JIRA_HOST") ?? "", env("JIRA_COOKIES") ?? ""),
-  new Repo((env("HOME") ?? ".") + "/jira-issues.json"),
-);
-
+const cache = new IssueCacherFactory().fromEnv();
 const one = (a: CommandArgs) => cache.one(a._[0] + "", a.field || "summary");
 
 new Commands({
