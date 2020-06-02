@@ -2,7 +2,7 @@
 import camelCase from "https://deno.land/x/lodash@4.17.15-es/camelCase.js";
 import snakeCase from "https://deno.land/x/lodash@4.17.15-es/snakeCase.js";
 import upperFirst from "https://deno.land/x/lodash@4.17.15-es/upperFirst.js";
-import { Commands } from "./lib/command.ts";
+import { Commands, CommandArgs } from "./lib/command.ts";
 import { basename, dirname, join } from "https://deno.land/std/path/mod.ts";
 
 const { readTextFile, writeTextFile, rename } = Deno;
@@ -134,6 +134,18 @@ class Editor {
     );
   }
 
+  async pasteNewLines() {
+    await this.file.map((text) =>
+      text.replace(
+        /(\})\s*(\n{1}|\n{3,})\s*(func|type|var)/gm,
+        (substring, prefix, nl, postfix) => {
+          console.log({ substring, prefix, nl, postfix });
+          return `${prefix}\n\n${postfix}`;
+        },
+      )
+    );
+  }
+
   async renameByCursor() {
     const text = await this.file.read();
     const word = this.cursor.getWord(text);
@@ -153,10 +165,11 @@ class Editor {
 }
 
 await new Commands({
-  rename: ({ _: [cursor_] }) =>
-    Editor.fromString(cursor_ + "").renameByCursor(),
+  rename: ({ _: [cursor] }) => Editor.fromString(cursor + "").renameByCursor(),
   paste: {
-    name: ({ _: [cursor_, textCase] }) =>
-      Editor.fromString(cursor_ + "").pasteFileName(textCase + ""),
+    name: ({ _: [cursor, textCase] }) =>
+      Editor.fromString(cursor + "").pasteFileName(textCase + ""),
+    newLines: ({ _: [cursor] }) =>
+      Editor.fromString(cursor + "").pasteNewLines(),
   },
 }).runAndExit();
