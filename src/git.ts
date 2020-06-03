@@ -1,6 +1,6 @@
-#!/usr/bin/env -S deno run --allow-run
+#!/usr/bin/env -S deno run --allow-run --allow-read
 import { Commands, print } from "../mod.ts";
-import { GitClient } from "./lib/git.ts";
+import { GitClient, GitPaths } from "../mod.ts";
 
 new Commands({
   recent: async ({ _: [i] }) => {
@@ -10,4 +10,6 @@ new Commands({
       : refs[parseInt(i + "")]);
     await print(output);
   },
+  root: ({ _: [query], root = "/Users/r.akhmerov/git" }) =>
+    new GitPaths(root).getOptions(query + ""),
 }).runAndExit();

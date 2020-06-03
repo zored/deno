@@ -10,6 +10,7 @@ type Name = string;
 
 interface DirInfo {
   dir: boolean;
+  symlink: boolean;
   name: Name;
 }
 
@@ -20,11 +21,13 @@ class FileSystem implements IFileSystem {
 
   getDirs = (root: string): Dirs =>
     this.read(root)
-      .reduce((dirs, file) => {
-        const path = `${root}/${file.name}`;
-        dirs[file.name] = (file.dir && !this.isGit(path))
-          ? this.getDirs(path)
-          : null;
+      .reduce((dirs, { name, dir, symlink }) => {
+        if (!dir) {
+          return dirs;
+        }
+
+        const path = `${root}/${name}`;
+        dirs[name] = this.isGit(path) ? null : this.getDirs(path);
         return dirs;
       }, {} as Dirs);
 
@@ -33,11 +36,17 @@ class FileSystem implements IFileSystem {
 
   private read = (dir: Path): DirInfo[] =>
     this.cache[dir] = this.cache[dir] ??
-      Array.from(readDirSync(dir)).map(({ isDirectory, name }) => ({
+      Array.from(readDirSync(dir)).map(({ isDirectory, isSymlink, name }) => ({
         dir: isDirectory,
+        symlink: isSymlink,
         name,
       }));
 }
+
+const log = <T>(a: T): T => {
+  console.log(a);
+  return a;
+};
 
 export class GitPaths {
   private readonly matcher = new Matcher();
@@ -73,7 +82,7 @@ export class GitPaths {
 
   getOptions = (query: string) =>
     DirsMethods.getLeafs(
-      this.fs.getDirs(this.root),
+      log(this.fs.getDirs(this.root)),
       this.root,
       (name: Name) => name.toLowerCase().indexOf(query.toLowerCase()) === 0,
     );
