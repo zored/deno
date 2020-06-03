@@ -7,8 +7,8 @@ const jira = new IssueCacherFactory().fromEnv();
 const git = new GitClient();
 
 new Commands({
-  recent: async ({ _: [i] }) => {
-    const refs = await git.recentRefs();
+  recent: async ({ i, a, b }) => {
+    const refs = (await git.recentRefs()).slice(a || -Infinity, b || +Infinity);
     const issues: string[] = [];
     for (let ref of refs) {
       try {

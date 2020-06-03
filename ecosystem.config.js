@@ -13,5 +13,6 @@ module.exports = {
     interpreterArgs: "run --allow-net --allow-read --allow-env --allow-write",
     watch: false,
     autorestart: false,
+    time: true,
   }],
 };
