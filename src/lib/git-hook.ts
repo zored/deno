@@ -1,4 +1,6 @@
-import { parse, Args } from "https://deno.land/std/flags/mod.ts";
+import { Args } from "https://deno.land/std/flags/mod.ts";
+import { GitClient } from "./git.ts";
+
 const { writeTextFileSync, chmodSync } = Deno;
 
 export type GitArgs = Args;
@@ -24,11 +26,24 @@ export type GitHookName =
 export type OptionalPromise = Promise<void> | void;
 export type GitHookHandler = (args: GitArgs) => OptionalPromise;
 export type GitHookHandlers = Partial<Record<GitHookName, GitHookHandler>>;
+
+export const assertAllTracked = async () => {
+  const files = await new GitClient().getUntracked();
+  if (files.length === 0) {
+    return;
+  }
+  console.log(files);
+
+  throw new Error(
+    `You have some untracked files:` + files.map((f) => "\n" + f).join(""),
+  );
+};
 export class GitHooks {
   constructor(
     private readonly handlers: GitHookHandlers = {},
     private scriptPath = "./run.ts hooks",
-  ) {}
+  ) {
+  }
 
   async run(args: Args): Promise<void> {
     const { _ } = args;

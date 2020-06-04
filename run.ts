@@ -1,11 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run
 import { Args } from "https://deno.land/std/flags/mod.ts";
-import {
-  Info,
-  Commands,
-  Runner,
-  GitHooks,
-} from "./mod.ts";
+import { assertAllTracked, Commands, GitHooks, Runner } from "./mod.ts";
 
 const format = (check = false) =>
   new Runner().run(
@@ -15,6 +10,7 @@ const format = (check = false) =>
 const test = () => new Runner().run(`deno test -A`);
 const gitHooks = new GitHooks({
   "pre-commit": async () => {
+    await assertAllTracked();
     await format(true);
     await test();
   },

@@ -1,22 +1,26 @@
-import { Commands, CommandArgs } from "../../mod.ts";
-import { exec, OutputMode, assertEquals } from "../../deps.ts";
+import { exec, OutputMode } from "../../deps.ts";
 
 interface IGitShell {
   reflogSubjects(): Promise<string>;
+
+  getUntracked(): Promise<string[]>;
 }
 
 class GitShell implements IGitShell {
-  async reflogSubjects(): Promise<string> {
-    return this.run(`git reflog --pretty=%gd%gs --date=iso`);
-  }
+  reflogSubjects = async () =>
+    this.run(`git reflog --pretty=%gd%gs --date=iso`);
 
-  private async run(command: string): Promise<string> {
-    const response = await exec(command, { output: OutputMode.Capture });
-    return response.output;
-  }
+  getUntracked = async () =>
+    (await this.run(`git ls-files --others --exclude-standard`))
+      .split("\n")
+      .filter((file) => file !== "");
+
+  private run = async (command: string) =>
+    (await exec(command, { output: OutputMode.Capture })).output.trim();
 }
 
 type Ref = string;
+
 interface IReflogSubjects {
   date: Date;
   from: Ref;
@@ -24,7 +28,8 @@ interface IReflogSubjects {
 }
 
 export class GitClient {
-  constructor(private git: IGitShell = new GitShell()) {}
+  constructor(private git: IGitShell = new GitShell()) {
+  }
 
   async recentRefs(): Promise<Ref[]> {
     const subjects = await this.reflogSubjects();
@@ -40,7 +45,7 @@ export class GitClient {
     return output
       .split("\n")
       .map((line) =>
-        line.match(/^HEAD@\{(.+?)\}checkout: moving from (.+) to (.+)$/) || []
+        line.match(/^HEAD@{(.+?)}checkout: moving from (.+) to (.+)$/) || []
       )
       .map(([, date, from, to]): IReflogSubjects => ({
         date: new Date(date),
@@ -49,4 +54,6 @@ export class GitClient {
       }))
       .filter(({ from }) => from !== undefined);
   }
+
+  getUntracked = async () => this.git.getUntracked();
 }

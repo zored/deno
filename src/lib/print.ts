@@ -1,3 +1,6 @@
-export function print(s: string): Promise<number> {
-  return Deno.stdout.write(new TextEncoder().encode(s));
+export function print(
+  s: string,
+  output: Deno.Writer = Deno.stdout,
+): Promise<number> {
+  return output.write(new TextEncoder().encode(s));
 }
