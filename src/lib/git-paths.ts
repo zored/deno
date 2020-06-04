@@ -82,7 +82,7 @@ export class GitPaths {
 
   getOptions = (query: string) =>
     DirsMethods.getLeafs(
-      log(this.fs.getDirs(this.root)),
+      this.fs.getDirs(this.root),
       this.root,
       (name: Name) => name.toLowerCase().indexOf(query.toLowerCase()) === 0,
     );

@@ -139,7 +139,6 @@ class Editor {
       text.replace(
         /(\})\s*(\n{1}|\n{3,})\s*(func|type|var)/gm,
         (substring, prefix, nl, postfix) => {
-          console.log({ substring, prefix, nl, postfix });
           return `${prefix}\n\n${postfix}`;
         },
       )
