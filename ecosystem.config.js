@@ -1,7 +1,9 @@
 // Here is example configuration for pm2 that I use.
-// https://pm2.keymetrics.io/
+// https://pm2.keymetrics.io/docs/usage/application-declaration/
 // Run with:
-//   pm2 starts
+//   pm2 start
+// Autoboot with:
+//   pm2 startup
 module.exports = {
   apps: [{
     name: "Jira Cache update",
