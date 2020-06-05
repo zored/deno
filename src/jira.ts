@@ -5,7 +5,7 @@ import { print } from "./lib/print.ts";
 import { IssueCacherFactory } from "./lib/jira.ts";
 const { env: {get: env} } = Deno;
 
-const cache = new IssueCacherFactory().fromEnv();
+const cache = await new IssueCacherFactory().fromEnv();
 const one = (a: CommandArgs) => cache.one(a._[0] + "", a.field || "summary");
 
 new Commands({

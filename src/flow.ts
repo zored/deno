@@ -14,7 +14,9 @@ new Commands({
     const issueRefs: string[] = [];
     for (let ref of refs) {
       try {
-        const summary = await new IssueCacherFactory().fromEnv().one(ref);
+        const summary = await (await new IssueCacherFactory().fromEnv()).one(
+          ref,
+        );
         issues.push(`${ref} ${summary}`);
         issueRefs.push(ref);
       } catch (e) {

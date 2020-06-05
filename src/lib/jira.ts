@@ -1,3 +1,5 @@
+import { join } from "../../deps.ts";
+
 const { writeTextFile, readTextFile, env: {get: env} } = Deno;
 import { parseQuery } from "./url.ts";
 
@@ -22,11 +24,30 @@ interface ITableIssueCache {
 }
 
 export class IssueCacherFactory {
-  fromEnv = () =>
+  fromEnv = async () =>
     new IssuesCacher(
-      new BrowserClient(env("JIRA_HOST") ?? "", env("JIRA_COOKIES") ?? ""),
+      await this.createClient(),
       new Repo((env("HOME") ?? ".") + "/jira-issues.json"),
     );
+
+  private createClient = async () => {
+    const auth = {
+      host: env("JIRA_HOST") ?? "",
+      cookies: env("JIRA_COOKIES") ?? "",
+    };
+
+    try {
+      const file = JSON.parse(
+        await readTextFile(join(env("HOME") ?? "/", "jira-auth.json")),
+      );
+      auth.host = file.host || auth.host;
+      auth.cookies = file.cookies || auth.cookies;
+    } catch (e) {
+      // That is ok.
+    }
+
+    return new BrowserClient(auth.host, auth.cookies);
+  };
 }
 
 export class IssuesCacher {
