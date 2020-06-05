@@ -26,11 +26,13 @@ interface ITableIssueCache {
 export class IssueCacherFactory {
   fromEnv = async () =>
     new IssuesCacher(
-      await this.createClient(),
+      await new BrowserClientFactory().create(),
       new Repo((env("HOME") ?? ".") + "/jira-issues.json"),
     );
+}
 
-  private createClient = async () => {
+export class BrowserClientFactory {
+  create = async () => {
     const auth = {
       host: env("JIRA_HOST") ?? "",
       cookies: env("JIRA_COOKIES") ?? "",
@@ -107,10 +109,13 @@ export class BrowserClient {
     };
   }
 
-  async fetchIssues(startIndex = 0): Promise<IIssueNavResponse> {
-    return (await fetch(`${this.host}/rest/issueNav/1/issueTable`, {
-      ...this.init,
-      "body": parseQuery({
+  regStartWork = async () =>
+    this.postJson("/rest/remote-work/1.0/userWorklog/regStartWork");
+
+  fetchIssues = async (startIndex = 0) =>
+    this.postJson(
+      "/rest/issueNav/1/issueTable",
+      parseQuery({
         startIndex: [startIndex.toString()],
         jql: [
           encodeURIComponent(
@@ -119,8 +124,13 @@ export class BrowserClient {
         ],
         layoutKey: ["split-view"],
       }),
-    })).json();
-  }
+    );
+
+  private postJson = async (path: string, body: string | null = null) =>
+    (await fetch(
+      `${this.host}/${path}`,
+      { ...this.init, body },
+    )).json();
 
   async fetchAllIssues() {
     const issues: ITableIssue[] = [];
