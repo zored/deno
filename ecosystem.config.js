@@ -6,6 +6,7 @@ module.exports = {
     interpreterArgs: 'run --allow-net --allow-read --allow-env --allow-write',
     script: 'src/jira.ts',
     args: 'cache --daemon-interval 5m',
+    restart_delay: 10000,
     time: true,
   }],
 };

@@ -31,7 +31,7 @@ export class BrowserClientFactory {
 
     try {
       const file = JSON.parse(
-        await readTextFile(join(env("HOME") ?? "/", "jira-auth.json")),
+        await readTextFile(join(env("HOME") ?? ".", "jira-auth.json")),
       );
       auth.host = file.host || auth.host;
       auth.cookies = file.cookies || auth.cookies;
@@ -79,11 +79,12 @@ export class IssuesCacher {
 export class BrowserClient {
   private readonly init: RequestInit;
 
-  constructor(private host: string, private cookie: string) {
+  constructor(private readonly host: string, private readonly cookie: string) {
+    this.host = this.host.replace(/\/+$/, "");
     this.init = {
       "headers": {
         "__amdmodulename": "jira/issue/utils/xsrf-token-header",
-        "accept": "*/*",
+        "accept": "application/json",
         "accept-language": "en,ru-RU;q=0.9,ru;q=0.8",
         "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
         "sec-fetch-dest": "empty",
@@ -101,10 +102,10 @@ export class BrowserClient {
   }
 
   regStartWork = async () =>
-    this.postJson("/rest/remote-work/1.0/userWorklog/regStartWork");
+    this.json(this.post("/rest/remote-work/1.0/userWorklog/regStartWork"));
 
   fetchIssues = async (startIndex = 0) =>
-    this.postJson(
+    this.json(this.post(
       "/rest/issueNav/1/issueTable",
       parseQuery({
         startIndex: [startIndex.toString()],
@@ -115,13 +116,16 @@ export class BrowserClient {
         ],
         layoutKey: ["split-view"],
       }),
+    ));
+
+  private post = async (path: string, body: string | null = null) =>
+    await fetch(
+      `${this.host}/${path.replace(/^\//, "")}`,
+      { ...this.init, body },
     );
 
-  private postJson = async (path: string, body: string | null = null) =>
-    (await fetch(
-      `${this.host}/${path}`,
-      { ...this.init, body },
-    )).json();
+  private json = async (p: Promise<Response>) => (await p).json();
+  private text = async (p: Promise<Response>) => (await p).text();
 
   async fetchAllIssues() {
     const issues: ITableIssue[] = [];
