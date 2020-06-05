@@ -1,4 +1,4 @@
-import { CommandMap, Commands, Silent, ICommandsConfig } from "./command.ts";
+import { Commands, ICommandsConfig } from "./command.ts";
 
 const defaultGenerateName = "completion";
 const defaultCompleteName = "completionComplete";
@@ -13,6 +13,7 @@ export class Generator {
     private completeName: string = defaultCompleteName,
   ) {
   }
+
   generate(name: string = "./run.ts"): string {
     const infoFactory = new InfoFactory();
     const url = new URL(this.commandsScriptUrl);
@@ -40,7 +41,9 @@ export class CompletionCommandFactory {
     private generateName: string = defaultGenerateName,
     private completeName: string = defaultCompleteName,
     private write = print,
-  ) {}
+  ) {
+  }
+
   apply(commands: Commands): void {
     commands.add({
       [this.generateName]: (args) =>
@@ -105,7 +108,7 @@ export interface IInfoTree {
   [key: string]: null | IInfoTree;
 }
 
-export class Info {
+class Info {
   private readonly wordTillCursor: string;
   private wordOffset = 0;
 
@@ -129,6 +132,7 @@ export class Info {
     this.wordOffset = wordOffset;
     return this;
   }
+
   fromTree(tree: IInfoTree, wordIndex = 0): string[] {
     if (this.wordIndex - this.wordOffset === wordIndex) {
       return Object.keys(tree);
@@ -152,12 +156,16 @@ export class Info {
   }
 }
 
+export { Info as CompletionInfo };
+
 export type WordRetriever = (info: Info) => string[];
+
 export class Completor {
   constructor(
     private getWords: WordRetriever,
     private wordOffset = 1,
-  ) {}
+  ) {
+  }
 
   run(s: string[]): string {
     const info = new InfoFactory().create(s).withWordOffset(this.wordOffset);

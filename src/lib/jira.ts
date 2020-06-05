@@ -9,15 +9,6 @@ export interface ITableIssue {
   summary: string;
 }
 
-export interface IIssueNavResponse {
-  issueTable: {
-    page: number;
-    pageSize: number;
-    total: number;
-    table: ITableIssue[];
-  };
-}
-
 interface ITableIssueCache {
   date: string;
   issues: ITableIssue[];
