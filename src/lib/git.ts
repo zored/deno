@@ -29,7 +29,7 @@ class GitShell implements IGitShell {
   };
 
   private tag = (tag: string) =>
-    this.run(`git tag --annotate "${tag}" --message "${tag}"`);
+    this.run(`git tag --annotate ${tag} --message ${tag}`);
 
   private lastTaggedHash = () => this.run(`git rev-list --tags --max-count=1`);
 
