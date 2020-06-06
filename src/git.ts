@@ -1,10 +1,10 @@
 #!/usr/bin/env -S deno run --allow-run --allow-read
-import { Commands, print } from "../mod.ts";
-import { GitClient, GitPaths } from "../mod.ts";
+import { Commands, print, GitClient, GitPaths } from "../mod.ts";
 
+const git = new GitClient();
 new Commands({
   recent: async ({ _: [i] }) => {
-    const refs = await new GitClient().recentRefs();
+    const refs = await git.recentRefs();
     const output = ((i === undefined)
       ? refs.concat([""]).join("\n")
       : refs[parseInt(i + "")]);
@@ -12,4 +12,9 @@ new Commands({
   },
   root: ({ _: [query], root = "/Users/r.akhmerov/git" }) =>
     new GitPaths(root).getOptions(query + ""),
+  incVer: async ({ type = "patch", prefix = "v" }) => {
+    const version = await git.lastVersion();
+    version.inc(type);
+    await git.pushNewTag("v" + version);
+  },
 }).runAndExit();

@@ -25,3 +25,4 @@ import upperFirst from "https://deno.land/x/lodash@4.17.15-es/upperFirst.js";
 import parse from "https://denopkg.com/nekobato/deno-xml-parser/index.ts";
 
 export { camelCase, snakeCase, upperFirst, parse as parseXml };
+export { SemVer } from "https://deno.land/x/semver@v1.0.0/mod.ts";

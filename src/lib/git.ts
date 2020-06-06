@@ -1,9 +1,14 @@
-import { exec, OutputMode } from "../../deps.ts";
+import { SemVer } from "../../deps.ts";
+import { Runner } from "./command.ts";
 
 interface IGitShell {
   reflogSubjects(): Promise<string>;
 
   getUntracked(): Promise<string[]>;
+
+  lastTag(): Promise<string>;
+
+  pushNewTag(tag: string): Promise<void>;
 }
 
 class GitShell implements IGitShell {
@@ -15,8 +20,21 @@ class GitShell implements IGitShell {
       .split("\n")
       .filter((file) => file !== "");
 
+  lastTag = async () =>
+    this.run(`git describe --tags ${await this.lastTaggedHash()}`);
+
+  pushNewTag = async (tag: string) => {
+    await this.tag(tag);
+    await this.run(`git push --tags`);
+  };
+
+  private tag = (tag: string) =>
+    this.run(`git tag --annotate "${tag}" --message "${tag}"`);
+
+  private lastTaggedHash = () => this.run(`git rev-list --tags --max-count=1`);
+
   private run = async (command: string) =>
-    (await exec(command, { output: OutputMode.Capture })).output.trim();
+    (await new Runner().output(command)).trim();
 }
 
 type Ref = string;
@@ -56,4 +74,11 @@ export class GitClient {
   }
 
   getUntracked = async () => this.git.getUntracked();
+
+  lastVersion = async () => await this.getLastVersion();
+
+  private getLastVersion = async (): Promise<SemVer> =>
+    new SemVer(await this.git.lastTag());
+
+  pushNewTag = (tag: string) => this.git.pushNewTag(tag);
 }

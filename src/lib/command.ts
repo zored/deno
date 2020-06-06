@@ -3,38 +3,79 @@ import { green, red } from "https://deno.land/std@0.52.0/fmt/colors.ts";
 import { delay } from "../../deps.ts";
 import { parseDuration } from "./duration.ts";
 
-const { args, exit, run } = Deno;
+const { args, exit } = Deno;
 
 export type CommandArgs = Args;
 type CommandSync = (tailArgs: Args) => void;
 type CommandAsync = (tailArgs: Args) => Promise<any>;
-export interface CommandMap extends Record<string, Command> {}
+
+export interface CommandMap extends Record<string, Command> {
+}
+
 export type Command = CommandSync | CommandAsync | CommandMap;
 
 export const runCommands = (m: CommandMap) => new Commands(m).runAndExit();
 
+export const sh = (command: string) => new Runner().run(command);
+export const shOut = (command: string) => new Runner().output(command);
+
+export class ProcessWrapper {
+  private status?: Deno.ProcessStatus;
+
+  constructor(private process: Deno.Process) {
+  }
+
+  async wait(): Promise<ProcessWrapper> {
+    await this.getStatus();
+    return this;
+  }
+
+  private getStatus = async () =>
+    this.status = this.status ??
+      await this.process.status();
+}
+
 export class Runner {
-  async run(command: string) {
-    const process = run({
-      cmd: command.split(" "),
-      stdout: "inherit",
-      stderr: "inherit",
-    });
+  run = async (
+    command: string,
+    options: Partial<Deno.RunOptions> = {},
+  ): Promise<void> =>
+    await this.assertStatus(await this.getProcess(options, command));
+
+  output = async (
+    command: string,
+    options: Partial<Deno.RunOptions> = {},
+  ): Promise<string> => {
+    options.stdout = "piped";
+    const process = this.getProcess(options, command);
+    const output = await process.output();
+    await this.assertStatus(process);
+    return new TextDecoder().decode(output);
+  };
+
+  private assertStatus = async (process: Deno.Process) => {
     const { code } = await process.status();
     if (code !== 0) {
-      throw new Error("Command failed");
+      throw new Error(`Command exited with code ${code}.`);
     }
-  }
+  };
+  private getProcess = (options: Partial<Deno.RunOptions>, command: string) =>
+    Deno.run({
+      ...options,
+      cmd: command.split(" "),
+    });
 }
 
 export interface ILogger {
   success(s: string): void;
+
   error(s: string): void;
 }
 
 export class Silent implements ILogger {
   success(s: string): void {
   }
+
   error(s: string): void {
     console.error(s);
   }
@@ -44,6 +85,7 @@ export class ConsoleLogger implements ILogger {
   success(s: string): void {
     console.log(green(s));
   }
+
   error(s: string): void {
     console.error(red(s));
   }
@@ -60,13 +102,15 @@ export class Commands {
   constructor(
     private commands: CommandMap,
     private logger: ILogger = new Silent(),
-  ) {}
+  ) {
+  }
 
   add(commands: CommandMap): void {
     Object.keys(commands).forEach((name) =>
       this.commands[name] = commands[name]
     );
   }
+
   getConfig(
     root: ICommandsConfig = { name: "root", children: [] },
     commands: CommandMap = this.commands,
