@@ -2,14 +2,18 @@
 
 import { Commands, CommandArgs } from "./lib/command.ts";
 import { print } from "./lib/print.ts";
-import { IssueCacherFactory } from "./lib/jira.ts";
+import { BrowserClientFactory, IssueCacherFactory } from "./lib/jira.ts";
 const { env: {get: env} } = Deno;
 
-const cache = await new IssueCacherFactory().fromEnv();
+const jira = await new BrowserClientFactory().create();
+const cache = await new IssueCacherFactory().fromEnv(jira);
 const one = (a: CommandArgs) => cache.one(a._[0] + "", a.field || "summary");
 
 new Commands({
   cache: () => cache.update(),
   get: async (a) => print(await one(a)),
+  action: async () => {
+    await jira.makeAction("MALL-10521", 241);
+  },
   getForPrompt: async (a) => print((await one(a)).replace(/[\[\]]/g, "")),
 }).runAndExit();

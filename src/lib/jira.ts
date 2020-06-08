@@ -3,8 +3,9 @@ import { join } from "../../deps.ts";
 const { writeTextFile, readTextFile, env: {get: env} } = Deno;
 import { parseQuery } from "./url.ts";
 
+export type IssueKey = string;
 export interface ITableIssue {
-  key: string;
+  key: IssueKey;
   status: string;
   summary: string;
 }
@@ -15,9 +16,9 @@ interface ITableIssueCache {
 }
 
 export class IssueCacherFactory {
-  fromEnv = async () =>
+  fromEnv = async (client?: BrowserClient) =>
     new IssuesCacher(
-      await new BrowserClientFactory().create(),
+      client ?? await new BrowserClientFactory().create(),
       new Repo((env("HOME") ?? ".") + "/jira-issues.json"),
     );
 }
@@ -104,6 +105,49 @@ export class BrowserClient {
   regStartWork = async () =>
     this.json(this.post("/rest/remote-work/1.0/userWorklog/regStartWork"));
 
+  makeAction = async (issue: IssueKey, action = 241) => {
+    const html = await this.getIssueHtml(issue);
+    const matches = html.matchAll(
+      /href="(?<path>[^"]*?action=(?<action>\d+)[^"]*?)"/g,
+    );
+    if (!matches) {
+      throw new Error(`No `);
+    }
+    const path = Array
+      .from(matches)
+      .map(({ groups }) => ({
+        path: groups?.path ?? "",
+        action: parseInt(groups?.action ?? "0", 10),
+      }))
+      .find(({ action: a }) => a === action)
+      ?.path;
+    if (!path) {
+      throw new Error(`No link with action ${action} found.`);
+    }
+
+    // Body:
+    const issueId = "0";
+    const formToken = ""; // - take from form.
+    const atl_token = ""; // - take from path.
+    const Transition = "In Progress"; // - do we need it?
+    const sprintField = "customfield_15401";
+    const body = new URLSearchParams({
+      action: action + "",
+      id: issueId,
+      formToken,
+      [sprintField]: "14020",
+      comment: "",
+      commentLevel: "",
+      atl_token,
+      Transition,
+    });
+
+    const response = await this.post(path, body);
+  };
+
+  private getIssueHtml = (issue: IssueKey) =>
+    this.text(this.get(`/browse/${issue}`));
+
   fetchIssues = async (startIndex = 0) =>
     this.json(this.post(
       "/rest/issueNav/1/issueTable",
@@ -118,10 +162,17 @@ export class BrowserClient {
       }),
     ));
 
-  private post = async (path: string, body: string | null = null) =>
-    await fetch(
+  private post = (path: string, body: BodyInit | null = null) =>
+    this.fetch(path, { body });
+  private get = (path: string) => this.fetch(path);
+
+  private fetch = (path: string, init: Partial<RequestInit> = {}) =>
+    fetch(
       `${this.host}/${path.replace(/^\//, "")}`,
-      { ...this.init, body },
+      {
+        ...this.init,
+        ...init,
+      },
     );
 
   private json = async (p: Promise<Response>) => (await p).json();
