@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run
 import { Args } from "https://deno.land/std/flags/mod.ts";
-import { assertAllTracked, Commands, GitHooks, Runner } from "./mod.ts";
+import { assertAllTracked, Commands, GitHooks, Runner, sh } from "./mod.ts";
 
 const format = (check = false) =>
   new Runner().run(
@@ -16,4 +16,9 @@ const gitHooks = new GitHooks({
   },
 });
 const hooks = (args: Args) => gitHooks.run(args);
-await new Commands({ test, hooks, fmt: () => format() }).runAndExit();
+await new Commands({
+  test,
+  hooks,
+  fmt: () => format(),
+  run: ({ _: [name, args] }) => sh(`./src/${name}.ts ${args}`),
+}).runAndExit();
