@@ -106,26 +106,12 @@ export class BrowserClient {
     this.json(this.post("/rest/remote-work/1.0/userWorklog/regStartWork"));
 
   makeAction = async (issue: IssueKey, action = 241) => {
-    const html = await this.getIssueHtml(issue);
-    const matches = html.matchAll(
-      /href="(?<path>[^"]*?action=(?<action>\d+)[^"]*?)"/g,
-    );
-    if (!matches) {
-      throw new Error(`No `);
-    }
-    const path = Array
-      .from(matches)
-      .map(({ groups }) => ({
-        path: groups?.path ?? "",
-        action: parseInt(groups?.action ?? "0", 10),
-      }))
-      .find(({ action: a }) => a === action)
-      ?.path;
-    if (!path) {
-      throw new Error(`No link with action ${action} found.`);
-    }
+    const actionPath = await this.getActionPathFromIssuePage(issue, action);
+    const response = await this.get(actionPath);
+    console.log(response);
+  };
 
-    // Body:
+  private async postActionForm(action: number, actionPath: string) {
     const issueId = "0";
     const formToken = ""; // - take from form.
     const atl_token = ""; // - take from path.
@@ -142,8 +128,8 @@ export class BrowserClient {
       Transition,
     });
 
-    const response = await this.post(path, body);
-  };
+    const response = await this.post(actionPath ?? "", body);
+  }
 
   private getIssueHtml = (issue: IssueKey) =>
     this.text(this.get(`/browse/${issue}`));
@@ -164,16 +150,20 @@ export class BrowserClient {
 
   private post = (path: string, body: BodyInit | null = null) =>
     this.fetch(path, { body });
-  private get = (path: string) => this.fetch(path);
+  private get = (path: string, init: Partial<RequestInit> = {}) =>
+    this.fetch(path, init);
 
-  private fetch = (path: string, init: Partial<RequestInit> = {}) =>
-    fetch(
-      `${this.host}/${path.replace(/^\//, "")}`,
+  private fetch = (path: string, init: Partial<RequestInit> = {}) => {
+    const url = `${this.host}/${path.replace(/^\//, "")}`;
+    console.log(url, init);
+    return fetch(
+      url,
       {
         ...this.init,
         ...init,
       },
     );
+  };
 
   private json = async (p: Promise<Response>) => (await p).json();
   private text = async (p: Promise<Response>) => (await p).text();
@@ -193,6 +183,31 @@ export class BrowserClient {
     }
     return issues;
   }
+
+  private getActionPathFromIssuePage = async (
+    issue: IssueKey,
+    action: number,
+  ): Promise<string> => {
+    const html = await this.getIssueHtml(issue);
+    const matches = html.matchAll(
+      /href="(?<path>[^"]*?action=(?<action>\d+)[^"]*?)"/g,
+    );
+    if (!matches) {
+      throw new Error(`No `);
+    }
+    const path = Array
+      .from(matches)
+      .map(({ groups }) => ({
+        path: groups?.path ?? "",
+        action: parseInt(groups?.action ?? "0", 10),
+      }))
+      .find(({ action: a }) => a === action)
+      ?.path;
+    if (!path) {
+      throw new Error(`No link with action ${action} found.`);
+    }
+    return path.replace(/&amp;/g, "&");
+  };
 }
 
 export class Repo {

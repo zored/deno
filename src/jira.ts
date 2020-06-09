@@ -12,8 +12,7 @@ const one = (a: CommandArgs) => cache.one(a._[0] + "", a.field || "summary");
 new Commands({
   cache: () => cache.update(),
   get: async (a) => print(await one(a)),
-  action: async () => {
-    await jira.makeAction("MALL-10521", 241);
-  },
+  action: async ({ _: [issue, action = 241] }) =>
+    await jira.makeAction(issue + "", parseInt(action + "", 10)),
   getForPrompt: async (a) => print((await one(a)).replace(/[\[\]]/g, "")),
 }).runAndExit();
