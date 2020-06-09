@@ -20,7 +20,7 @@ export const parseDuration = (d: Duration): Milliseconds => {
     v(seconds),
     m(60, [
       v(minutes),
-      m(24, [
+      m(60, [
         v(hours),
         m(24, [
           v(days),
