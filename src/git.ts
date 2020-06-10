@@ -1,7 +1,16 @@
-#!/usr/bin/env -S deno run --allow-run --allow-read
-import { Commands, print, GitClient, GitPaths } from "../mod.ts";
+#!/usr/bin/env -S deno run --allow-run --allow-write --allow-read
+import {
+  Commands,
+  print,
+  GitClient,
+  GitPaths,
+  MessageBuilderRepo,
+} from "../mod.ts";
 
 const git = new GitClient();
+
+const messageBuilders = new MessageBuilderRepo();
+
 new Commands({
   recent: async ({ _: [i] }) => {
     const refs = await git.recentRefs();
@@ -16,5 +25,16 @@ new Commands({
     const version = await git.lastVersion();
     version.inc(type);
     await git.pushNewTag(prefix + version);
+  },
+  message: {
+    add: ({ _:message }) =>
+      messageBuilders.each((b) =>
+        b.add(message.join(" "))
+      ),
+    flush: async () => {
+      let message = "";
+      await messageBuilders.each((b) => message = b.flush());
+      await print(message);
+    },
   },
 }).runAndExit();
