@@ -1,41 +1,112 @@
 # deno
-Here are my [deno](https://deno.land/) scripts.
+Here are my [Deno](https://deno.land/) scripts:
+- [chromedriver-check](#chromedriver-check)
+- [debug-http](#debug-http)
+- [dep-check](#dep-check)
+- [file-edit](#file-edit)
+- [flow](#flow)
+- [git](#git)
+- [go-lint](#go-lint)
+- [info](#info)
+- [jira](#jira)
+- [shell-completion](#shell-completion)
+
+In your Deno code you may use my [`lib`](./src/lib) direactory.
+
+## chromedriver-check
+Check that chromedriver has the same version with browser.
+
+## debug-http
+Run this to debug any HTTP-requests.
 
 ## dep-check
-Check dependencies.
+Check dependencies in your architecture.
 
-Create `dep-check.json` for your Golang app:
-```json
-{
-  "layers": {
-  	"ddd": [
-	    [
-	      "app/src/http",
-	      "app/src/cli"
-	    ],
-	    "app/src/service",
-	    [
-	      "app/src/domain",
-	      "app/src/utils"
-	    ]
-	]
-  }
-}
-```
+Supported languages:
+- Golang.
+- Kotlin.
 
-And check dependencies:
+Ussage:
+- Create `dep-check.json` for your app:
+	```json
+	{
+	"layers": {
+		"ddd": [
+			[
+			"app/src/http",
+			"app/src/cli"
+			],
+			"app/src/service",
+			[
+			"app/src/domain",
+			"app/src/utils"
+			]
+		]
+	}
+	}
+	```
+- Check dependencies:
+	```sh
+	deno run --allow-read \
+		https://raw.githubusercontent.com/zored/deno/v0.0.36/src/dep-check.ts \
+		$PWD \
+		$PWD/dep-check.json
+	```
+
+## file-edit
+Some simple edits for your file.
+- Rename file by cursor word.
+- Paste file name as word.
+- Paste new lines between Golang functions.
+
+## flow
+Tie different sources.
+- git
+- jira
+
+## git
+Useful git actions.
+- Recent branches.
+- Increment and push tag version:
+
+Example (increments minor version with prefix `v`):
 ```sh
-deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/v0.0.23/src/dep-check.ts \
-	$PWD \
-	$PWD/dep-check.json
+deno run --allow-run --allow-read \
+	https://raw.githubusercontent.com/zored/deno/v0.0.36/src/git.ts
 ```
 
+## info
+Retrieve info from one files into another.
 
-### shell-completion
+Example:
+- Create source `some.xml`:
+    ```xml
+	<description>new text</description>
+	```
+- Create `README.md`:
+	```md
+	# Description
+	<!-- info.ts.textFromXml(`some.xml`, `//description[1]`) { -->
+	old text
+	<!-- } -->
+	```
+- Run:
+	```sh
+	deno run --allow-read --allow-write \
+		https://raw.githubusercontent.com/zored/deno/v0.0.36/src/info.ts \
+		README.md
+	```
+
+## jira
+Some Jira actions.
+- Cache and retrieve Jira issue names.
+
+## shell-completion
 Autocomplete commands in SH.
+
+Example:
 ```sh
-deno install -f https://raw.githubusercontent.com/zored/deno/v0.0.23/src/shell-completion.ts
+deno install -f https://raw.githubusercontent.com/zored/deno/v0.0.36/src/shell-completion.ts
 eval "$(shell-completion completion --name=shell-completion)"
 
 # Now completion works:
@@ -48,24 +119,9 @@ shell-completion sample ba<tab>
 Lint Golang according to some advanced rules:
 - Multiline errors.
 
+Example:
 ```sh
 deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/v0.0.23/src/go-lint.ts \
+	https://raw.githubusercontent.com/zored/deno/v0.0.36/src/go-lint.ts \
 	$PWD
-```
-
-## info
-Retrieve info from one files into another.
-
-Create `README.md`:
-```md
-# Description
-<!-- info.ts.textFromXml(`README.md`, `//description[1]`) { -->
-```
-
-```sh
-
-deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/v0.0.23/src/info.ts \
-	README.md
 ```

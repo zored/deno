@@ -2,10 +2,10 @@
 import {
   Application,
   Router,
-} from "https://deno.land/x/denotrain@v0.5.0/mod.ts";
+} from "../deps.ts";
 const { args, readAll, writeTextFile } = Deno;
 const responseBody = args[0] || '{"ok": true}';
-const port = 8998;
+const port = args[1];
 const app = new Application({ port });
 const router = new Router();
 

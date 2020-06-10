@@ -10,11 +10,11 @@ new Commands({
       : refs[parseInt(i + "")]);
     await print(output);
   },
-  root: ({ _: [query], root = "/Users/r.akhmerov/git" }) =>
+  root: ({ _: [query], root = "/Users/r.akhmerov/git", prefix = "v" }) =>
     new GitPaths(root).getOptions(query + ""),
   incVer: async ({ type = "patch", prefix = "v" }) => {
     const version = await git.lastVersion();
     version.inc(type);
-    await git.pushNewTag("v" + version);
+    await git.pushNewTag(prefix + version);
   },
 }).runAndExit();
