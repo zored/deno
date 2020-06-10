@@ -28,30 +28,30 @@ Supported languages:
 
 Ussage:
 - Create `dep-check.json` for your app:
-	```json
-	{
-	"layers": {
-		"ddd": [
-			[
-			"app/src/http",
-			"app/src/cli"
-			],
-			"app/src/service",
-			[
-			"app/src/domain",
-			"app/src/utils"
-			]
-		]
-	}
-	}
-	```
+    ```json
+    {
+    "layers": {
+        "ddd": [
+            [
+            "app/src/http",
+            "app/src/cli"
+            ],
+            "app/src/service",
+            [
+            "app/src/domain",
+            "app/src/utils"
+            ]
+        ]
+    }
+    }
+    ```
 - Check dependencies:
-	```sh
-	deno run --allow-read \
-		https://raw.githubusercontent.com/zored/deno/v0.0.36/src/dep-check.ts \
-		$PWD \
-		$PWD/dep-check.json
-	```
+    ```sh
+    deno run --allow-read \
+        https://raw.githubusercontent.com/zored/deno/v0.0.36/src/dep-check.ts \
+        $PWD \
+        $PWD/dep-check.json
+    ```
 
 ## file-edit
 Some simple edits for your file.
@@ -60,9 +60,7 @@ Some simple edits for your file.
 - Paste new lines between Golang functions.
 
 ## flow
-Tie different sources.
-- git
-- jira
+Connects [git](#git) and [jira](#git). Retrieves recent branches for issues.
 
 ## git
 Useful git actions.
@@ -72,7 +70,7 @@ Useful git actions.
 Example (increments minor version with prefix `v`):
 ```sh
 deno run --allow-run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/v0.0.36/src/git.ts
+    https://raw.githubusercontent.com/zored/deno/v0.0.36/src/git.ts
 ```
 
 ## info
@@ -81,21 +79,21 @@ Retrieve info from one files into another.
 Example:
 - Create source `some.xml`:
     ```xml
-	<description>new text</description>
-	```
+    <description>new text</description>
+    ```
 - Create `README.md`:
-	```md
-	# Description
-	<!-- info.ts.textFromXml(`some.xml`, `//description[1]`) { -->
-	old text
-	<!-- } -->
-	```
+    ```md
+    # Description
+    <!-- info.ts.textFromXml(`some.xml`, `//description[1]`) { -->
+    old text
+    <!-- } -->
+    ```
 - Run:
-	```sh
-	deno run --allow-read --allow-write \
-		https://raw.githubusercontent.com/zored/deno/v0.0.36/src/info.ts \
-		README.md
-	```
+    ```sh
+    deno run --allow-read --allow-write \
+        https://raw.githubusercontent.com/zored/deno/v0.0.36/src/info.ts \
+        README.md
+    ```
 
 ## jira
 Some Jira actions.
@@ -122,6 +120,6 @@ Lint Golang according to some advanced rules:
 Example:
 ```sh
 deno run --allow-read \
-	https://raw.githubusercontent.com/zored/deno/v0.0.36/src/go-lint.ts \
-	$PWD
+    https://raw.githubusercontent.com/zored/deno/v0.0.36/src/go-lint.ts \
+    $PWD
 ```
