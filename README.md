@@ -33,13 +33,13 @@ Ussage:
         "layers": {
             "ddd": [
                 [
-                "app/src/http",
-                "app/src/cli"
+                    "app/src/http",
+                    "app/src/cli"
                 ],
-                "app/src/service",
+                    "app/src/service",
                 [
-                "app/src/domain",
-                "app/src/utils"
+                    "app/src/domain",
+                    "app/src/utils"
                 ]
             ]
         }
