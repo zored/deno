@@ -30,27 +30,27 @@ Ussage:
 - Create `dep-check.json` for your app:
     ```json
     {
-    "layers": {
-        "ddd": [
-            [
-            "app/src/http",
-            "app/src/cli"
-            ],
-            "app/src/service",
-            [
-            "app/src/domain",
-            "app/src/utils"
+        "layers": {
+            "ddd": [
+                [
+                "app/src/http",
+                "app/src/cli"
+                ],
+                "app/src/service",
+                [
+                "app/src/domain",
+                "app/src/utils"
+                ]
             ]
-        ]
-    }
+        }
     }
     ```
 - Check dependencies:
     ```sh
     deno run --allow-read \
         https://raw.githubusercontent.com/zored/deno/v0.0.36/src/dep-check.ts \
-        $PWD \
-        $PWD/dep-check.json
+            $PWD \
+            $PWD/dep-check.json
     ```
 
 ## file-edit
@@ -92,7 +92,7 @@ Example:
     ```sh
     deno run --allow-read --allow-write \
         https://raw.githubusercontent.com/zored/deno/v0.0.36/src/info.ts \
-        README.md
+            README.md
     ```
 
 ## jira
@@ -121,5 +121,5 @@ Example:
 ```sh
 deno run --allow-read \
     https://raw.githubusercontent.com/zored/deno/v0.0.36/src/go-lint.ts \
-    $PWD
+        $PWD
 ```
