@@ -48,7 +48,7 @@ Ussage:
 - Check dependencies:
     ```sh
     deno run --allow-read \
-        https://raw.githubusercontent.com/zored/deno/v0.0.36/src/dep-check.ts \
+        https://raw.githubusercontent.com/zored/deno/v0.0.37/src/dep-check.ts \
             $PWD \
             $PWD/dep-check.json
     ```
@@ -65,13 +65,29 @@ Connects [git](#git) and [jira](#git). Retrieves recent branches for issues.
 ## git
 Useful git actions.
 - Recent branches.
-- Increment and push tag version:
+- Increment and push tag version.
 
 Example (increments minor version with prefix `v`):
 ```sh
 deno run --allow-run --allow-read \
-    https://raw.githubusercontent.com/zored/deno/v0.0.36/src/git.ts \
+    https://raw.githubusercontent.com/zored/deno/v0.0.37/src/git.ts \
 	    incVer
+```
+
+Example: build commit message:
+```sh
+deno install \
+  --allow-run --allow-write --allow-read \
+  -f --name zored-git \
+  https://raw.githubusercontent.com/zored/deno/v0.0.37/src/git.ts
+
+zored-git message add 'create repo'
+zored-git message add 'create service'
+zored-git message flush | git commit -aF -
+
+# Results with commit message:
+# - create repo
+# - create service
 ```
 
 ## info
@@ -92,7 +108,7 @@ Example:
 - Run:
     ```sh
     deno run --allow-read --allow-write \
-        https://raw.githubusercontent.com/zored/deno/v0.0.36/src/info.ts \
+        https://raw.githubusercontent.com/zored/deno/v0.0.37/src/info.ts \
             README.md
     ```
 
@@ -105,7 +121,7 @@ Autocomplete commands in SH.
 
 Example:
 ```sh
-deno install -f https://raw.githubusercontent.com/zored/deno/v0.0.36/src/shell-completion.ts
+deno install -f https://raw.githubusercontent.com/zored/deno/v0.0.37/src/shell-completion.ts
 eval "$(shell-completion completion --name=shell-completion)"
 
 # Now completion works:
@@ -121,6 +137,6 @@ Lint Golang according to some advanced rules:
 Example:
 ```sh
 deno run --allow-read \
-    https://raw.githubusercontent.com/zored/deno/v0.0.36/src/go-lint.ts \
+    https://raw.githubusercontent.com/zored/deno/v0.0.37/src/go-lint.ts \
         $PWD
 ```
