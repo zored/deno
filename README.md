@@ -70,7 +70,8 @@ Useful git actions.
 Example (increments minor version with prefix `v`):
 ```sh
 deno run --allow-run --allow-read \
-    https://raw.githubusercontent.com/zored/deno/v0.0.36/src/git.ts
+    https://raw.githubusercontent.com/zored/deno/v0.0.36/src/git.ts \
+	    incVer
 ```
 
 ## info
