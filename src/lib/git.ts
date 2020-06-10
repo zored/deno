@@ -98,11 +98,21 @@ export class MessageBuilder {
   }
 
   flush(): string {
-    const result = this.lines.length === 1 ? this.lines[0] : this.lines
-      .map((l) => this.prefix + l)
-      .join(this.glue);
+    const result = this.getString();
     this.lines = [];
     return result;
+  }
+
+  private getString(): string {
+    switch (this.lines.length) {
+      case 0:
+        throw new Error("Nothing to flush.");
+      case 1:
+        return this.lines[0];
+    }
+    return this.lines
+      .map((l) => this.prefix + l)
+      .join(this.glue);
   }
 }
 
