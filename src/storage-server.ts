@@ -1,3 +1,4 @@
+#!/usr/bin/env -S deno run --allow-net --quiet
 import {
   Application,
   Router,
@@ -63,7 +64,9 @@ const createNumbersRoute = () => {
   return router;
 };
 
-app.use("/led16", createObjectRoute());
+const led16 = createObjectRoute();
+app.use("/led16", led16);
+app.use("/", led16); // - back-compatibility.
 app.use("/numbers", createNumbersRoute());
 
 await app.run();
