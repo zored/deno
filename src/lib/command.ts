@@ -16,8 +16,9 @@ export type Command = CommandSync | CommandAsync | CommandMap;
 
 export const runCommands = (m: CommandMap) => new Commands(m).runAndExit();
 
-export const sh = (command: string) => new Runner().run(command);
-export const shOut = (command: string) => new Runner().output(command);
+export type ShCommand = string | string[];
+export const sh = (command: ShCommand) => new Runner().run(command);
+export const shOut = (command: ShCommand) => new Runner().output(command);
 
 export class ProcessWrapper {
   private status?: Deno.ProcessStatus;
@@ -37,13 +38,13 @@ export class ProcessWrapper {
 
 export class Runner {
   run = async (
-    command: string,
+    command: ShCommand,
     options: Partial<Deno.RunOptions> = {},
   ): Promise<void> =>
     await this.assertStatus(await this.getProcess(options, command));
 
   output = async (
-    command: string,
+    command: ShCommand,
     options: Partial<Deno.RunOptions> = {},
   ): Promise<string> => {
     options.stdout = "piped";
@@ -59,10 +60,13 @@ export class Runner {
       throw new Error(`Command exited with code ${code}.`);
     }
   };
-  private getProcess = (options: Partial<Deno.RunOptions>, command: string) =>
+  private getProcess = (
+    options: Partial<Deno.RunOptions>,
+    command: ShCommand,
+  ) =>
     Deno.run({
       ...options,
-      cmd: command.split(" "),
+      cmd: Array.isArray(command) ? command : command.split(" "),
     });
 }
 
