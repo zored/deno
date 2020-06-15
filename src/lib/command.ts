@@ -57,7 +57,7 @@ export class Runner {
   private assertStatus = async (process: Deno.Process) => {
     const { code } = await process.status();
     if (code !== 0) {
-      throw new Error(`Command exited with code ${code}.`);
+      throw new Error(`Shell command exited with code ${code}.`);
     }
   };
   private getProcess = (
