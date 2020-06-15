@@ -1,5 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run --allow-env --allow-read --quiet
-import { runCommands, sh } from "../mod.ts";
+import { runCommands, sh, ShCommand, shOut } from "../mod.ts";
+import { green, red } from "../deps.ts";
 
 interface ISSHProxy extends IProxy {
   type: "ssh";
@@ -17,6 +18,16 @@ interface IMongoProxy extends IProxy {
   slave?: boolean;
 }
 
+interface IScreenProxy extends IProxy {
+  type: "screen";
+  name: string;
+}
+
+interface IK8SProxy extends IProxy {
+  type: "k8s";
+  pod: string;
+}
+
 interface IProxy {
   type: string;
   flags?: Record<string, string | number | boolean>;
@@ -25,22 +36,35 @@ interface IProxy {
 interface IConfig extends Record<string, (IProxy & any)[]> {
 }
 
+type Params = Record<string, any>;
+type ShCommands = string[];
+
 class ProxyRunner {
+  private handlers: ProxyHandler<any>[] = [
+    new SSHHandler(),
+    new DockerHandler(),
+    new MongoHandler(),
+    new ScreenHandler(),
+    new K8SHandler(),
+  ];
   constructor(
     private config: IConfig,
-    private handlers: ProxyHandler<any>[] = [
-      new SSHHandler(),
-      new DockerHandler(),
-      new MongoHandler(),
-    ],
+    handlers: ProxyHandler<any>[] = [],
   ) {
+    handlers.forEach((h) => this.handlers.push(h));
   }
+
+  static fromFile = async (s: string | undefined) => {
+    const text = await Deno.readTextFile(s || "no-file");
+    return new ProxyRunner(JSON.parse(text));
+  };
 
   run = async (
     name: string,
     namespace: string,
     separator: string,
-    onlyEval: boolean,
+    isEval: boolean,
+    params: Params,
   ) => {
     namespace = namespace.replace(/^\//, "");
     namespace = namespace.replace(/\/$/, "") + "/";
@@ -74,34 +98,64 @@ class ProxyRunner {
       default:
         throw new Error(`Ambiguous ${name} for ${namespace}: ${fulls}`);
     }
+
     const proxyConfigs = this.config[name];
     if (!proxyConfigs) {
-      throw new Error(
-        `No config '${name}' found for your namespace '${namespace}'. Use one of: ${
-          names.map((n) => `\n${n}`).join("")
+      console.log(
+        `${
+          red(`No config '${name}' found`)
+        } for your namespace '${namespace}'. Use one of: ${
+          names.map((n) => `\n- ${green(n)}`).join("")
         }`,
       );
+      Deno.exit(1);
     }
 
-    const command = proxyConfigs.flatMap((c) => this.createCommand(c));
+    const shCommands: ShCommands = [];
+    for (const config of proxyConfigs) {
+      const postfix = await this.createCommand(config, params, shCommands);
+      postfix.forEach((c) => shCommands.push(c));
+    }
 
     const args = Deno.args;
     const start = args.indexOf(separator);
     if (start > -1) {
       const lastProxy = proxyConfigs.slice(-1)[0];
       const lastProxyArgs = args.slice(start + 1);
-      const extendedLastProxyArgs = onlyEval
-        ? this.getHandler(lastProxy).getEval(lastProxyArgs[0])
-        : lastProxyArgs;
+      const lastHandler = this.getHandler(lastProxy);
+      const extendedLastProxyArgs = isEval
+        ? lastHandler.getEval(lastProxyArgs[0], lastProxy)
+        : lastHandler.getTty(lastProxy).concat(lastProxyArgs);
+
       extendedLastProxyArgs
         .map((a) => this.enrichArgument(a, lastProxy))
-        .forEach((a) => command.push(proxyConfigs.length > 1 ? `'${a}'` : a));
+        .forEach((a) =>
+          shCommands.push(proxyConfigs.length > 1 ? `'${a}'` : a)
+        );
     }
-    await sh(command);
+    await this.exec(shCommands, false);
   };
 
-  private createCommand(c: IProxy) {
+  private exec = async (command: ShCommands, out: boolean) => {
+    console.log(command.join(" "));
+    if (out) {
+      return await shOut(command);
+    }
+    await sh(command);
+    return "";
+  };
+
+  private createCommand = async (
+    c: IProxy,
+    params: Params,
+    previous: ShCommands,
+  ) => {
     const handler = this.getHandler(c);
+    await handler.updateConfig(
+      c,
+      params,
+      (cs) => this.exec(previous.concat(cs), true),
+    );
 
     const { flags } = c;
     const flagsParsed = Object.entries(flags || {}).reduce(
@@ -118,10 +172,10 @@ class ProxyRunner {
         f.push(value.toString());
         return f;
       },
-      [] as string[],
+      [] as ShCommands,
     );
     return handler.handle(c).concat(flagsParsed);
-  }
+  };
 
   private enrichArgument = (a: string, c: IProxy): string =>
     this.getHandler(c).enrichArgument(a, c);
@@ -133,21 +187,24 @@ class ProxyRunner {
     }
     return handler;
   }
-
-  static fromFile = async (s: string | undefined) => {
-    const text = await Deno.readTextFile(s || "no-file");
-    return new ProxyRunner(JSON.parse(text));
-  };
 }
 
 abstract class ProxyHandler<T extends IProxy> {
-  abstract handle(c: T): string[];
+  abstract handle(c: T): ShCommands;
 
   abstract suits(c: T): boolean;
 
-  getEval = (command: string) => [command];
+  getEval = (command: string, lastProxy: T) => [command];
 
   enrichArgument = (a: string, c: T) => a;
+
+  getTty = (c: T): ShCommands => [];
+
+  updateConfig = async (
+    c: T,
+    params: Params,
+    exec: ExecSubCommand,
+  ): Promise<void> => {};
 }
 
 class SSHHandler extends ProxyHandler<ISSHProxy> {
@@ -160,6 +217,63 @@ class DockerHandler extends ProxyHandler<IDockerProxy> {
     c: IDockerProxy,
   ) => ["sudo", "docker", "run", "-it", "--net=host", "--rm", c.image];
   suits = (c: IDockerProxy) => c.type === "docker";
+}
+
+interface IK8SParams {
+  podNeedle?: string;
+}
+
+type ExecSubCommand = (command: ShCommands) => Promise<string>;
+
+class K8SHandler extends ProxyHandler<IK8SProxy> {
+  handle = (
+    c: IK8SProxy,
+  ) => ["kubectl", "exec", "-it", c.pod];
+  suits = (c: IK8SProxy) => c.type === "k8s";
+  getTty = () => ["sh"];
+
+  updateConfig = async (c: IK8SProxy, params: Params, exec: ExecSubCommand) => {
+    if (c.pod) {
+      return;
+    }
+    const p: IK8SParams | undefined = params[c.type];
+    if (p) {
+      const { podNeedle } = p;
+      if (podNeedle) {
+        const output = await exec(["kubectl", "get", "pods", "-o", "json"]);
+        const pods: any[] = JSON.parse(output).items;
+        const getName = (pod: any) => pod.metadata.name;
+        const foundPods = pods.filter((p) =>
+          getName(p).indexOf(podNeedle) === 0
+        );
+        switch (foundPods.length) {
+          case 0:
+            throw new Error(`No pods found by ${podNeedle}.`);
+          case 1:
+            c.pod = getName(foundPods[0]);
+            break;
+          case 2:
+            throw new Error(
+              `Many pods found by ${podNeedle}: ${pods.map(getName).join("")}`,
+            );
+        }
+      }
+    }
+
+    if (!c.pod) {
+      throw new Error("No pod criteria set up for K8S.");
+    }
+  };
+}
+
+class ScreenHandler extends ProxyHandler<IScreenProxy> {
+  handle = (c: IScreenProxy) => ["screen"];
+  suits = (c: IScreenProxy) => c.type === "screen";
+  getEval = (
+    command: string,
+    c: IScreenProxy,
+  ) => ["screen", "-S", c.name, "-p", "0", "-X", "stuff", `${command}^M`];
+  getTty = (c: IScreenProxy) => ["-r", c.name];
 }
 
 class MongoHandler extends ProxyHandler<IMongoProxy> {
@@ -176,7 +290,7 @@ class MongoHandler extends ProxyHandler<IMongoProxy> {
     this.lastArgument = a;
     return a;
   };
-  getEval = (c: string) => ["--eval", c];
+  getEval = (command: string, p: IMongoProxy) => ["--eval", command];
 }
 
 const shellProxy = "i";
@@ -189,6 +303,7 @@ await runCommands({
         env("name") || "",
         env("namespace") || "",
         shellProxy,
-        env("eval") === "y",
+        ["y", "val", "1"].includes(env("eval") || "n"),
+        JSON.parse(env("params") || "{}"),
       ),
 });
