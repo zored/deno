@@ -7,10 +7,9 @@ import { IMongoProxy } from "./ProxyHandler/MongoHandler.ts";
 const { test } = Deno;
 
 test("test eval", async () => {
-  const name = "sample";
   const runner = new ProxyRunner(
     {
-      [name]: [
+      "some/namespace/sample": [
         {
           type: "ssh",
           alias: "kek",
@@ -32,10 +31,11 @@ test("test eval", async () => {
     false,
     [],
   );
+
   const result = await runner.run(
-    name,
-    ["db", ".find()"],
-    "",
+    "sample",
+    ["db.people", ".find()"],
+    "some/namespace",
     true,
     {},
     true,
@@ -45,7 +45,7 @@ test("test eval", async () => {
     [
       "ssh -t kek",
       "sudo docker run -it --net=host --rm some:1.2.3 --custom flag",
-      "mongo mongo://example --quiet '--eval' 'rs.slaveOk(); db .find()'",
+      "mongo mongo://example --quiet '--eval' 'rs.slaveOk(); db.people .find()'",
     ].join(" "),
     result.join(" "),
   );
