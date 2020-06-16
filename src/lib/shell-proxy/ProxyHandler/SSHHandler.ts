@@ -1,12 +1,12 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
-import { IProxy } from "../IConfig.ts";
+import { ProxyConfig } from "../ProxyConfigs.ts";
 
-export interface ISSHProxy extends IProxy {
+export interface SSHConfig extends ProxyConfig {
   type: "ssh";
-  alias: string;
+  sshAlias: string;
 }
 
-export class SSHHandler extends ProxyHandler<ISSHProxy> {
-  handle = (c: ISSHProxy) => ["ssh", "-t", c.alias];
-  suits = (c: ISSHProxy) => c.type === "ssh";
+export class SSHHandler extends ProxyHandler<SSHConfig> {
+  handle = (c: SSHConfig) => ["ssh", "-t", c.sshAlias];
+  suits = (c: SSHConfig) => c.type === "ssh";
 }

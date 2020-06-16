@@ -1,7 +1,7 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
-import { IProxy } from "../IConfig.ts";
+import { ProxyConfig } from "../ProxyConfigs.ts";
 
-export interface IScreenProxy extends IProxy {
+export interface IScreenProxy extends ProxyConfig {
   type: "screen";
   name: string;
 }

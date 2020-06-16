@@ -1,7 +1,7 @@
 import { ExecSubCommand, Params, ShCommands } from "./ProxyRunner.ts";
-import { IProxy } from "./IConfig.ts";
+import { ProxyConfig } from "./ProxyConfigs.ts";
 
-export abstract class ProxyHandler<T extends IProxy> {
+export abstract class ProxyHandler<T extends ProxyConfig> {
   abstract handle(c: T): ShCommands;
 
   abstract suits(c: T): boolean;

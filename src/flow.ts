@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-run --allow-env --allow-read --unstable
-import { Commands, print, runCommands } from "../mod.ts";
+import { print, runCommands } from "../mod.ts";
 import { GitClient } from "./lib/git.ts";
 import { CliSelect } from "./lib/unstable-command.ts";
 import { IssueCacherFactory } from "./lib/jira.ts";

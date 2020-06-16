@@ -1,8 +1,10 @@
-import parse from "https://denopkg.com/nekobato/deno-xml-parser/index.ts";
+import { parseXml } from "../../deps.ts";
+
 const { readTextFileSync, writeTextFileSync } = Deno;
 
 export class Info {
   private readonly methods = new Methods();
+
   updateFiles(files: string[]): void {
     files.forEach((file): void => this.updateFile(file));
   }
@@ -26,10 +28,11 @@ export class Info {
     writeTextFileSync(file, newContents);
   }
 }
+
 class Methods {
   textFromXml(file: string, xpath: string): string {
     const text = readTextFileSync(file);
-    const node = parse(text);
+    const node = parseXml(text);
 
     // Get name:
     const match = xpath.match(/^\/\/(.*)\[1\]$/);

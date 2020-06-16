@@ -1,35 +1,55 @@
 import { ProxyRunner } from "./ProxyRunner.ts";
-
-const env = (name: string) => Deno.env.get(name);
-
-const str = (n: string): string => env(n) || "";
-const is = (n: string): boolean =>
-  ["y", "1"].includes((env(n) + "").toLowerCase());
+import { parse } from "../../../deps.ts";
+import { CliSelect } from "../unstable-command.ts";
 
 export class ProxyRunnerFactory {
-  fromEnv = async (separator: string) => (await this.fromFile(
-    str("file"),
-    is("debug"),
-  ));
-
-  private fromFile = async (path: string, debug = false) =>
+  fromFile = async (path: string, debug = false) =>
     new ProxyRunner(
       JSON.parse(await Deno.readTextFile(path)),
       debug,
     );
 }
 
-export const runFromEnv = async (separator: string) => {
-  const argsStart = separator === "" ? 0 : Deno.args.indexOf(separator) + 1;
-  const lastProxyArgs = Deno.args.slice(argsStart);
-  const params = JSON.parse(env("params") || "{}");
+export const runShellProxyFromArgs = async (unstable = false) => {
+  const {
+    _,
+    eval: isEval,
+    verbose,
+    config,
+    merge,
+    "dry-run": dry,
+  } = parse(
+    Deno.args,
+    {
+      boolean: ["eval", "verbose"],
+      string: ["merge", "config"],
+      alias: {
+        "eval": ["e"],
+        "verbose": ["v"],
+        "merge": ["m"],
+        "config": ["c"],
+        "dry-run": ["d"],
+      },
+    },
+  );
 
-  return (await new ProxyRunnerFactory().fromEnv(separator)).run(
-    str("name"),
-    lastProxyArgs,
-    str("namespace"),
-    is("eval"),
-    params,
-    is("debug"),
+  let [name, ...deepestArgs] = _;
+
+  const runner = await new ProxyRunnerFactory().fromFile(
+    config || "shell-proxy.json",
+    verbose,
+  );
+
+  if (!name && unstable) {
+    const ids = runner.configs.getIds().sort();
+    name = await new CliSelect().select(ids, (_, i) => ids[i]);
+  }
+
+  return await runner.run(
+    name + "",
+    deepestArgs.map((a) => a + ""),
+    isEval,
+    merge ? JSON.parse(merge) : {},
+    dry,
   );
 };

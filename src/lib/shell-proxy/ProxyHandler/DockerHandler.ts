@@ -1,14 +1,14 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
-import { IProxy } from "../IConfig.ts";
+import { ProxyConfig } from "../ProxyConfigs.ts";
 
-export interface IDockerProxy extends IProxy {
+export interface DockerConfig extends ProxyConfig {
   type: "docker";
   image: string;
 }
 
-export class DockerHandler extends ProxyHandler<IDockerProxy> {
+export class DockerHandler extends ProxyHandler<DockerConfig> {
   handle = (
-    c: IDockerProxy,
+    c: DockerConfig,
   ) => ["sudo", "docker", "run", "-it", "--net=host", "--rm", c.image];
-  suits = (c: IDockerProxy) => c.type === "docker";
+  suits = (c: DockerConfig) => c.type === "docker";
 }

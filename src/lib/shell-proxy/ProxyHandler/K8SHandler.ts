@@ -1,5 +1,5 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
-import { IProxy } from "../IConfig.ts";
+import { ProxyConfig } from "../ProxyConfigs.ts";
 import { ExecSubCommand, Params } from "../ProxyRunner.ts";
 
 type IK8SParams =
@@ -9,7 +9,7 @@ type IK8SParams =
   | "list"
   | undefined;
 
-export interface IK8SProxy extends IProxy {
+export interface IK8SProxy extends ProxyConfig {
   type: "k8s";
   pod: string;
 }
