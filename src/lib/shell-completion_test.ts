@@ -7,7 +7,7 @@ import {
   Generator,
   Completor,
   WordRetriever,
-  CompletionCommandFactory,
+  CommandFactory,
 } from "./shell-completion.ts";
 import { Commands } from "./command.ts";
 test("generator", () => {
@@ -74,7 +74,7 @@ test("completor sh", () => {
 
 test("command", async () => {
   const commands = new Commands({ goodbye: { cruel: { world: () => {} } } });
-  new CompletionCommandFactory(
+  new CommandFactory(
     "path/to.ts",
     "app.ts",
     "gen",

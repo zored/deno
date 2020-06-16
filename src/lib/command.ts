@@ -143,6 +143,13 @@ export class Commands {
     if (command) {
       return await this.runOneOrMap(name, command, commandArgs);
     }
+    if (commands.default_) {
+      return await this.runOneOrMap(
+        name,
+        commands.default_ as Command,
+        commandArgs,
+      );
+    }
     const names = this.allNames(commands).join(", ");
     this.logger.error(`Unknown command: ${name}.\nExpected commands: ${names}`);
 

@@ -10,19 +10,20 @@ const print = (s: string): void => {
 export class Generator {
   constructor(
     private commandsScriptUrl: string,
-    private completeName: string = defaultCompleteName,
+    private completeArgument: string = defaultCompleteName,
   ) {
   }
 
-  generate(name: string = "./run.ts"): string {
+  generate(name: string = "./run.ts", params = ""): string {
     const infoFactory = new InfoFactory();
     const url = new URL(this.commandsScriptUrl);
     const self = [
       url.protocol.match(/^https?\:$/)
         ? `~/.deno/bin/` + url.pathname.split("/").pop()?.split(".").shift()
         : url.pathname,
-      this.completeName,
-    ].join(" ");
+      params,
+      this.completeArgument,
+    ].filter((v) => !!v).join(" ");
     const variablesString = infoFactory.getVariablesString();
     const completionPrefix = name.replace(/[\W]+/g, "");
     const completionName = `_${completionPrefix}_zored_shell_completion`;
@@ -34,7 +35,21 @@ complete -F ${completionName} ${name}
   }
 }
 
-export class CompletionCommandFactory {
+export const completionByCommands = (
+  importMeta: ImportMeta,
+  commands: Commands,
+  name = "./run.ts",
+) => new CommandFactory(importMeta.url, name);
+
+export const completionByArgs = (
+  importMeta: ImportMeta,
+  r: WordRetriever,
+  name = "./run.ts",
+  params = "",
+  args: (string | number)[] = Deno.args,
+) => new ArgsFactory(importMeta.url, name, params).handle(r, args);
+
+export class CommandFactory {
   constructor(
     private commandsScriptUrl: string,
     private execName = "./run.ts",
@@ -69,6 +84,40 @@ export class CompletionCommandFactory {
       tree[name] = children ? this.commandsToTree(children) : null
     );
     return tree;
+  }
+}
+
+export class ArgsFactory {
+  constructor(
+    private commandsScriptUrl: string,
+    private execName = "./run.ts",
+    private params = "",
+    private generateName: string = defaultGenerateName,
+    private completeName: string = defaultCompleteName,
+    private write = print,
+  ) {
+  }
+
+  handle(r: WordRetriever, fullArgs: (string | number)[] = Deno.args): void {
+    const [name, ...args] = fullArgs;
+    switch (name) {
+      case this.generateName:
+        this.write(
+          new Generator(this.commandsScriptUrl).generate(
+            this.execName,
+            this.params,
+          ),
+        );
+        break;
+      case this.completeName:
+        this.write(
+          new Completor(r).run(args.map((s) => s.toString())),
+        );
+        break;
+      default:
+        return;
+    }
+    Deno.exit(0);
   }
 }
 

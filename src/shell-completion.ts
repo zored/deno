@@ -1,11 +1,9 @@
 #!/usr/bin/env -S deno run --allow-write --quiet
-import { CompletionCommandFactory } from "./lib/shell-completion.ts";
+import { completionByCommands } from "./lib/shell-completion.ts";
 import { Commands } from "../mod.ts";
 
 const commands = new Commands(
   { sample: { bamble: { dable: () => console.log("hi!") } } },
 );
-new CompletionCommandFactory(import.meta.url, "shell-completion").apply(
-  commands,
-);
+completionByCommands(import.meta, commands, "shell-completion");
 await commands.runAndExit();
