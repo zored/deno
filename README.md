@@ -10,6 +10,7 @@ Here are my [Deno](https://deno.land/) scripts:
 - [info](#info)
 - [jira](#jira)
 - [shell-completion](#shell-completion)
+- [shell-proxy](#shell-proxy)
 
 In your Deno code you may use my [`lib`](./src/lib) direactory.
 
@@ -90,6 +91,17 @@ zored-git message flush | git commit -aF -
 # - create service
 ```
 
+## go-lint
+Lint Golang according to some advanced rules:
+- Multiline errors.
+
+Example:
+```sh
+deno run --allow-read \
+    https://raw.githubusercontent.com/zored/deno/v0.0.37/src/go-lint.ts \
+        $PWD
+```
+
 ## info
 Retrieve info from one files into another.
 
@@ -130,13 +142,57 @@ shell-completion sample ba<tab>
 # ...
 ```
 
-## go-lint
-Lint Golang according to some advanced rules:
-- Multiline errors.
+## shell-proxy
+Do you have several SSH-terminals with Dockers with Mongo inside of them? Now you can easily access them all.
 
-Example:
-```sh
-deno run --allow-read \
-    https://raw.githubusercontent.com/zored/deno/v0.0.37/src/go-lint.ts \
-        $PWD
+```bash
+sp -e -- /ssh/docker-mongo/mongo 'db.people.count()' 
+sp -e -- db1 'db.people.count()' 
 ```
+
+### Example
+- Configure global config with proxies`~/shell-proxy.json`:
+    ```json
+    [
+      {
+        "globalAlias": "dev",
+        "pathAlias": "dev",
+        "type": "ssh",
+        "sshAlias": "dev",
+        "children": [
+          {
+            "type": "docker",
+            "image": "mongo:4.2.0",
+            "children": {
+              "globalAlias": "db1",
+              "pathAlias": "investstats_prod_read",
+              "type": "mongo",
+              "uri": "mongodb://localhost:12345/dbname",
+              "slave": true,
+              "flags": {
+                "authenticationDatabase": "admin"
+              }
+            }
+          }
+        ]
+      }
+    ]
+    ```
+
+- Create alias for `~/.bash_profile` and restart terminal:
+    ```bash
+    # Alias:
+    alias sp='deno run \
+      --allow-run --allow-env --allow-read --quiet --unstable \
+      https://raw.githubusercontent.com/zored/deno/v0.0.46/src/shell-proxy.ts \
+      --config $HOME/shell-proxy.json
+    '
+  
+    # Autocomplete:
+    eval "$(sp completion)"
+    ```
+
+- Use it:
+    ```bash
+    sp
+    ```
