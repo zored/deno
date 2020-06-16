@@ -7,7 +7,6 @@ export class CliSelect {
     options: string[],
     map: (option: string, index: number) => T,
   ): Promise<T> => {
-    console.log(options);
     const buttons = "asdfjkl;".split("");
     let page = 0;
     const prev = buttons.shift() ?? "";
