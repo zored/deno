@@ -33,7 +33,6 @@ export class ProxyRunner {
   run = async (
     name: string,
     lastProxyArgs: string[],
-    namespace: string,
     isEval: boolean,
     params: Params,
     dry: boolean,

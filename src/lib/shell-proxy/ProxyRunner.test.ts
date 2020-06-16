@@ -1,52 +1,88 @@
-import { ProxyRunner } from "./ProxyRunner.ts";
-import { ISSHProxy } from "./ProxyHandler/SSHHandler.ts";
+import {
+  ExecSubCommand,
+  Params,
+  ProxyRunner,
+  ShCommands,
+} from "./ProxyRunner.ts";
 import { assertEquals } from "../../../deps.ts";
-import { IDockerProxy } from "./ProxyHandler/DockerHandler.ts";
-import { IMongoProxy } from "./ProxyHandler/MongoHandler.ts";
 
 const { test } = Deno;
 
 test("test eval", async () => {
   const runner = new ProxyRunner(
-    {
-      "some/namespace/sample": [
-        {
-          type: "ssh",
-          alias: "kek",
-        } as ISSHProxy,
-        {
-          type: "docker",
-          image: "some:1.2.3",
-          flags: {
-            "custom": "flag",
+    [
+      {
+        name: "dev",
+        type: "ssh",
+        alias: "kek",
+        children: [
+          {
+            type: "docker",
+            image: "some:1.2.3",
+            flags: {
+              "custom": "flag",
+            },
+            children: [
+              {
+                aliases: ["dev_db"],
+                type: "mongo",
+                slave: true,
+                uri: "mongo://example",
+              },
+              {
+                aliases: ["custom_cmd"],
+                type: "custom",
+              },
+            ],
           },
-        } as IDockerProxy,
-        {
-          type: "mongo",
-          slave: true,
-          uri: "mongo://example",
-        } as IMongoProxy,
-      ],
-    },
+        ],
+      },
+    ],
     false,
-    [],
+    [{
+      suits: (c: any) => c.type === "custom",
+      handleParams: async (c: any, params: Params, exec: ExecSubCommand) =>
+        c.data = params["value"],
+      handle: (c: any) => [c.data],
+    }],
   );
 
-  const result = await runner.run(
-    "sample",
-    ["db.people", ".find()"],
-    "some/namespace",
-    true,
-    {},
-    true,
-  );
+  const assertCommands = async (
+    expected: ShCommands,
+    cs: Promise<ShCommands>,
+  ) =>
+    assertEquals(
+      expected.join(" "),
+      (await cs).join(" "),
+    );
 
-  assertEquals(
+  await assertCommands(
     [
       "ssh -t kek",
       "sudo docker run -it --net=host --rm some:1.2.3 --custom flag",
       "mongo mongo://example --quiet '--eval' 'rs.slaveOk(); db.people .find()'",
-    ].join(" "),
-    result.join(" "),
+    ],
+    runner.run(
+      "dev/docker/mongo",
+      ["db.people", ".find()"],
+      true,
+      {},
+      true,
+    ),
+  );
+
+  await assertCommands(
+    [
+      "ssh -t kek",
+      "sudo docker run -it --net=host --rm some:1.2.3 --custom flag",
+      "mongo mongo://example --quiet '--eval' 'rs.slaveOk(); db.people .find()'",
+    ],
+    runner.run(
+      "custom_cmd",
+      ["db.people", ".find()"],
+      true,
+      { "value": "custom.sh" },
+      true,
+    ),
   );
 });
