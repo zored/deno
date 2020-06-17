@@ -7,10 +7,12 @@ import { ProxyConfig } from "./ProxyConfigs.ts";
 export abstract class ProxyHandler<Config extends ProxyConfig> {
   abstract suits(c: Config): boolean;
 
-  getChainBase = (c: Config): ShCommands => [
-    ...this.getBase(c),
-    ...this.getFlags(c),
-  ];
+  getChainBase(c: Config, last: boolean): ShCommands {
+    return [
+      ...this.getBase(c),
+      ...this.getFlags(c),
+    ];
+  }
 
   abstract getBase(c: Config): ShCommands;
 
@@ -23,7 +25,7 @@ export abstract class ProxyHandler<Config extends ProxyConfig> {
     c: Config,
     params: Params,
     exec: ExecSubCommand,
-  ): Promise<void> => {};
+  ): Promise<any> => {};
 
   protected getFlags = (config: ProxyConfig): ShCommands =>
     Object.entries(config.flags || {}).reduce(

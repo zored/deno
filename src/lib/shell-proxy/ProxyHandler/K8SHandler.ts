@@ -22,7 +22,11 @@ export class K8SHandler extends ProxyHandler<IK8SProxy> {
   suits = (c: IK8SProxy) => c.type === "k8s";
   getTty = () => ["sh"];
 
-  handleParams = async (c: IK8SProxy, params: Params, exec: ExecSubCommand) => {
+  handleParams = async (
+    c: IK8SProxy,
+    params: Params,
+    exec: ExecSubCommand,
+  ): Promise<any> => {
     if (c.pod) {
       return;
     }

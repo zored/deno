@@ -26,7 +26,7 @@ export class MongoHandler extends ProxyHandler<MongoConfig> {
         switch (first) {
           case "dump":
           case "restore":
-            args.unshift("--archive");
+            args.unshift("--gzip");
             break;
         }
         return [`mongo${first}`, "--uri", c.uri, "--quiet", ...args];
@@ -45,6 +45,8 @@ export class MongoHandler extends ProxyHandler<MongoConfig> {
     return a;
   };
 
-  private mongo = (c: MongoConfig, args: ShCommands = []) =>
-    ["mongo", c.uri, "--quiet", ...this.getFlags(c)].concat(args);
+  private mongo = (
+    c: MongoConfig,
+    args: ShCommands = [],
+  ) => ["mongo", c.uri, "--quiet", ...this.getFlags(c), ...args];
 }

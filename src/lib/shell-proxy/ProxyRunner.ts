@@ -51,13 +51,17 @@ export class ProxyRunner {
     }
 
     const commands = new CommandBuilder();
-    for (const config of configs) {
+    for (let i in configs) {
+      const config = configs[i];
+      const isLast = parseInt(i) === configs.length - 1;
       commands.add(
-        (await this.createProxyCommands(
+        await this.createProxyCommands(
           config,
           params,
-          (cs) => this.exec(commands.with(cs)),
-        )),
+          async (cs) =>
+            cs.length === 0 ? "" : await this.exec(commands.with(cs)),
+          isLast,
+        ),
       );
     }
 
@@ -107,6 +111,7 @@ export class ProxyRunner {
     config: ProxyConfig,
     params: Params,
     exec: ExecSubCommand,
+    isLast: boolean,
   ): Promise<ShCommands> => {
     const handler = this.getHandler(config);
     await handler.handleParams(
@@ -114,7 +119,7 @@ export class ProxyRunner {
       params,
       exec,
     );
-    return handler.getChainBase(config);
+    return handler.getChainBase(config, isLast);
   };
 
   private enrichArgument = (a: string, c: ProxyConfig): string =>
