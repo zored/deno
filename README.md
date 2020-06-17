@@ -1,4 +1,6 @@
 # deno
+[![Build Status](https://travis-ci.org/zored/deno.svg?branch=master)](https://travis-ci.org/zored/deno)
+
 Here are my [Deno](https://deno.land/) scripts:
 - [chromedriver-check](#chromedriver-check)
 - [debug-http](#debug-http)

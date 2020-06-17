@@ -1,9 +1,10 @@
-dist: bionic
+language: minimal
 
 before_install:
 - curl -fsSL https://deno.land/x/install/install.sh | sh -s v1.1.0
 - export PATH="/home/travis/.deno/bin:$PATH"
 
+# TODO: for some reason `./run.ts` throws `/usr/bin/env: ‘deno run --allow-run’: No such file or directory`.
 script:
-- ./run.ts fmt --lint
-- ./run.ts test
+- deno run --allow-run run.ts fmt --lint
+- deno run --allow-run run.ts run.ts test
