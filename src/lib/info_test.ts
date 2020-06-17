@@ -1,5 +1,5 @@
 import { Info } from "./info.ts";
-import { assertEquals, assert } from "https://deno.land/std/testing/asserts.ts";
+import { assertEquals } from "../../deps.ts";
 const { test } = Deno;
 
 test("updates test", () => {

@@ -2,7 +2,7 @@ const { test } = Deno;
 import {
   assertEquals,
   assertStrContains,
-} from "https://deno.land/std/testing/asserts.ts";
+} from "../../deps.ts";
 import {
   Generator,
   Completor,

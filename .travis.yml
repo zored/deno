@@ -1,9 +1,5 @@
 language: minimal
 
-cache:
-  directories:
-    - ~/.cache/deno
-
 before_install:
 - curl -fsSL https://deno.land/x/install/install.sh | sh -s v1.1.0
 - export PATH="/home/travis/.deno/bin:$PATH"
