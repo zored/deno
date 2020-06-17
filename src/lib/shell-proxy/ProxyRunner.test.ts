@@ -14,7 +14,7 @@ interface CustomConfig extends ProxyConfig {
 }
 
 class CustomHandler extends ProxyHandler<CustomConfig> {
-  handle = (c: CustomConfig) => [c.command];
+  getBase = (c: CustomConfig) => [c.command];
   suits = (c: CustomConfig) => c.type === "custom";
 }
 
@@ -63,7 +63,7 @@ test("test eval", async () => {
     [
       "ssh -t kek",
       "sudo docker run -it --net=host --rm some:1.2.3 --custom flag",
-      "mongo mongo://example --quiet '--eval' 'rs.slaveOk(); db.people .find()'",
+      "'mongo' 'mongo://example' '--quiet' '--eval' 'rs.slaveOk(); db.people .find()'",
     ],
     runner.run(
       "/dev/docker/mongo",

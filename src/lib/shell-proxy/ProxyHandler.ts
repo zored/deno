@@ -1,20 +1,45 @@
 import { ExecSubCommand, Params, ShCommands } from "./ProxyRunner.ts";
 import { ProxyConfig } from "./ProxyConfigs.ts";
 
-export abstract class ProxyHandler<T extends ProxyConfig> {
-  abstract handle(c: T): ShCommands;
+/**
+ * Handles specific shell-proxy config node and retrieves commands depending on context.
+ */
+export abstract class ProxyHandler<Config extends ProxyConfig> {
+  abstract suits(c: Config): boolean;
 
-  abstract suits(c: T): boolean;
+  getChainBase = (c: Config): ShCommands => [
+    ...this.getBase(c),
+    ...this.getFlags(c),
+  ];
 
-  getEval = (command: string, c: T) => [command];
+  abstract getBase(c: Config): ShCommands;
 
-  enrichArgument = (a: string, c: T) => a;
+  getEval = (cs: ShCommands, c: Config): ShCommands => cs;
+  getTty = (c: Config): ShCommands => [];
 
-  getTty = (c: T): ShCommands => [];
+  enrichArgument = (a: string, c: Config) => a;
 
   handleParams = async (
-    c: T,
+    c: Config,
     params: Params,
     exec: ExecSubCommand,
   ): Promise<void> => {};
+
+  protected getFlags = (config: ProxyConfig): ShCommands =>
+    Object.entries(config.flags || {}).reduce(
+      (commands, [name, value]) => {
+        const flag = `--${name}`;
+        if (value === true) {
+          commands.push(flag);
+          return commands;
+        }
+        if (value === false || value === undefined || value === null) {
+          return commands;
+        }
+        commands.push(flag);
+        commands.push(value.toString());
+        return commands;
+      },
+      [] as ShCommands,
+    );
 }

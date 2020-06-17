@@ -7,6 +7,6 @@ export interface SSHConfig extends ProxyConfig {
 }
 
 export class SSHHandler extends ProxyHandler<SSHConfig> {
-  handle = (c: SSHConfig) => ["ssh", "-t", c.sshAlias];
+  getBase = (c: SSHConfig) => ["ssh", "-t", c.sshAlias];
   suits = (c: SSHConfig) => c.type === "ssh";
 }

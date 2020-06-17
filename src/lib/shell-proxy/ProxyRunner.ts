@@ -81,7 +81,7 @@ export class ProxyRunner {
     const [config] = configs.slice(-1);
     const handler = this.getHandler(config);
     return (isEval
-      ? handler.getEval(lastProxyArgs.join(" "), config)
+      ? handler.getEval(lastProxyArgs, config)
       : handler.getTty(config).concat(lastProxyArgs))
       .map((a) => this.enrichArgument(a, config))
       .map((a) => configs.length > 1 ? `'${a}'` : a);
@@ -114,28 +114,7 @@ export class ProxyRunner {
       params,
       exec,
     );
-
-    const { flags } = config;
-    return handler
-      .handle(config)
-      .concat(
-        Object.entries(flags || {}).reduce(
-          (commands, [name, value]) => {
-            const flag = `--${name}`;
-            if (value === true) {
-              commands.push(flag);
-              return commands;
-            }
-            if (value === false || value === undefined || value === null) {
-              return commands;
-            }
-            commands.push(flag);
-            commands.push(value.toString());
-            return commands;
-          },
-          [] as ShCommands,
-        ),
-      );
+    return handler.getChainBase(config);
   };
 
   private enrichArgument = (a: string, c: ProxyConfig): string =>

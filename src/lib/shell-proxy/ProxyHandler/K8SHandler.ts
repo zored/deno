@@ -16,7 +16,7 @@ export interface IK8SProxy extends ProxyConfig {
 export class K8SHandler extends ProxyHandler<IK8SProxy> {
   private mode: "pod" | "logs" | "get" = "pod";
 
-  handle = (
+  getBase = (
     c: IK8SProxy,
   ) => ["kubectl", "exec", "-it", c.pod];
   suits = (c: IK8SProxy) => c.type === "k8s";

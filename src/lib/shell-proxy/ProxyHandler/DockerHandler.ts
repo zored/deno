@@ -7,7 +7,7 @@ export interface DockerConfig extends ProxyConfig {
 }
 
 export class DockerHandler extends ProxyHandler<DockerConfig> {
-  handle = (
+  getBase = (
     c: DockerConfig,
   ) => ["sudo", "docker", "run", "-it", "--net=host", "--rm", c.image];
   suits = (c: DockerConfig) => c.type === "docker";

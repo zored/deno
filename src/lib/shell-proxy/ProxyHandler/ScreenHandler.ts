@@ -1,5 +1,6 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
 import { ProxyConfig } from "../ProxyConfigs.ts";
+import { ShCommands } from "../ProxyRunner.ts";
 
 export interface IScreenProxy extends ProxyConfig {
   type: "screen";
@@ -7,11 +8,11 @@ export interface IScreenProxy extends ProxyConfig {
 }
 
 export class ScreenHandler extends ProxyHandler<IScreenProxy> {
-  handle = (c: IScreenProxy) => ["screen"];
+  getBase = (c: IScreenProxy) => ["screen"];
   suits = (c: IScreenProxy) => c.type === "screen";
   getEval = (
-    command: string,
+    cs: ShCommands,
     c: IScreenProxy,
-  ) => ["screen", "-S", c.name, "-p", "0", "-X", "stuff", `${command}^M`];
+  ) => ["screen", "-S", c.name, "-p", "0", "-X", "stuff", `${cs.join(" ")}^M`];
   getTty = (c: IScreenProxy) => ["-r", c.name];
 }
