@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write
+#!/usr/bin/env deno run --allow-read --allow-write
 import camelCase from "https://deno.land/x/lodash@4.17.15-es/camelCase.js";
 import snakeCase from "https://deno.land/x/lodash@4.17.15-es/snakeCase.js";
 import upperFirst from "https://deno.land/x/lodash@4.17.15-es/upperFirst.js";

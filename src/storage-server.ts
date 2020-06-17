@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-net --quiet
+#!/usr/bin/env deno run --allow-net --quiet
 import {
   Application,
   Router,

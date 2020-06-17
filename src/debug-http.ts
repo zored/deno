@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-net --allow-write
+#!/usr/bin/env deno run --allow-net --allow-write
 import {
   Application,
   Router,

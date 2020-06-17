@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read
+#!/usr/bin/env deno run --allow-read
 import { DepChecker } from "./lib/dep-check.ts";
 const { args } = Deno;
 

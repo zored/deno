@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-run --allow-env --allow-read --unstable
+#!/usr/bin/env deno run --allow-run --allow-env --allow-read --unstable
 import { print, runCommands } from "../mod.ts";
 import { GitClient } from "./lib/git.ts";
 import { CliSelect } from "./lib/unstable-command.ts";

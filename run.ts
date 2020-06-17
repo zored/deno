@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-run
+#!/usr/bin/env deno run --allow-run
 import { Args } from "https://deno.land/std/flags/mod.ts";
 import { assertAllTracked, Commands, GitHooks, Runner, sh } from "./mod.ts";
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-net --allow-read --allow-env --allow-write
+#!/usr/bin/env deno run --allow-net --allow-read --allow-env --allow-write
 
 import { Commands, CommandArgs } from "./lib/command.ts";
 import { print } from "./lib/print.ts";

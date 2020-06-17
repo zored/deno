@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-run
+#!/usr/bin/env deno run --allow-run
 import { exec, OutputMode } from "https://deno.land/x/exec/mod.ts";
 const { exit } = Deno;
 const responses = await Promise.all([

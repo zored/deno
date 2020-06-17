@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read
+#!/usr/bin/env deno run --allow-read
 import { bold, red } from "https://deno.land/std@0.52.0/fmt/colors.ts";
 
 async function main() {
