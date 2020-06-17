@@ -2,7 +2,7 @@
 import {
   Application,
   Router,
-} from "https://deno.land/x/denotrain@v0.5.2/mod.ts";
+} from "../deps.ts";
 
 const app = new Application({ port: parseInt(Deno.args[0]) || 3000 });
 const success = { "ok": true };

@@ -1,5 +1,5 @@
 #!/usr/bin/env deno run --allow-run
-import { exec, OutputMode } from "https://deno.land/x/exec/mod.ts";
+import { exec, OutputMode } from "../deps.ts";
 const { exit } = Deno;
 const responses = await Promise.all([
   "chromedriver --version",

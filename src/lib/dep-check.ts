@@ -1,5 +1,5 @@
 const { exit } = Deno;
-import { bold, red } from "https://deno.land/std@0.52.0/fmt/colors.ts";
+import { bold, red } from "../../deps.ts";
 
 export class DepChecker {
   async byPaths(path: string, rulesPath = "dep-check.json"): Promise<void> {

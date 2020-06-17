@@ -1,4 +1,4 @@
-import { Args } from "https://deno.land/std/flags/mod.ts";
+import { Args } from "../../deps.ts";
 import { GitClient } from "./git.ts";
 
 const { writeTextFileSync, chmodSync } = Deno;

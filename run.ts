@@ -1,5 +1,5 @@
 #!/usr/bin/env deno run --allow-run
-import { Args } from "https://deno.land/std/flags/mod.ts";
+import { Args } from "./deps.ts";
 import { assertAllTracked, Commands, GitHooks, Runner, sh } from "./mod.ts";
 
 const format = (check = false) =>

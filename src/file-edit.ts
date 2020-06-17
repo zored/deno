@@ -1,9 +1,13 @@
 #!/usr/bin/env deno run --allow-read --allow-write
-import camelCase from "https://deno.land/x/lodash@4.17.15-es/camelCase.js";
-import snakeCase from "https://deno.land/x/lodash@4.17.15-es/snakeCase.js";
-import upperFirst from "https://deno.land/x/lodash@4.17.15-es/upperFirst.js";
-import { Commands, CommandArgs } from "./lib/command.ts";
-import { basename, dirname, join } from "https://deno.land/std/path/mod.ts";
+import {
+  camelCase,
+  snakeCase,
+  upperFirst,
+  basename,
+  dirname,
+  join,
+} from "../deps.ts";
+import { Commands } from "./lib/command.ts";
 
 const { readTextFile, writeTextFile, rename } = Deno;
 

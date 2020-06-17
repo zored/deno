@@ -1,4 +1,4 @@
-import { readKeypress } from "https://raw.githubusercontent.com/dmitriytat/keypress/0.0.1/mod.ts";
+import { readKeypress } from "../../deps.unstable.ts";
 import { print } from "./print.ts";
 import { green } from "../../deps.ts";
 
