@@ -6,5 +6,5 @@ before_install:
 
 # TODO: for some reason `./run.ts` throws `/usr/bin/env: ‘deno run --allow-run’: No such file or directory`.
 script:
-- deno run --allow-run run.ts fmt --lint
-- deno run --allow-run run.ts run.ts test
+- deno run --allow-run ./run.ts fmt --lint
+- deno run --allow-run ./run.ts run.ts test
