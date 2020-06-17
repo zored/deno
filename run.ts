@@ -19,6 +19,6 @@ const hooks = (args: Args) => gitHooks.run(args);
 await new Commands({
   test,
   hooks,
-  fmt: () => format(),
+  fmt: ({ lint }) => format(!!lint),
   run: ({ _: [name, args] }) => sh(`./src/${name}.ts ${args}`),
 }).runAndExit();
