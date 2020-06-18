@@ -1,5 +1,5 @@
 # deno
-![ci](https://github.com/zored/deno/workflows/ci/badge.svg?branch=master)
+[![ci](https://github.com/zored/deno/workflows/ci/badge.svg?branch=master)](https://github.com/zored/deno/actions)
 
 Here are my [Deno](https://deno.land/) scripts:
 - [chromedriver-check](#chromedriver-check)
