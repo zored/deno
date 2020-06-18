@@ -10,7 +10,7 @@ export interface IScreenProxy extends ProxyConfig {
 export class ScreenHandler extends ProxyHandler<IScreenProxy> {
   getBase = (c: IScreenProxy) => ["screen"];
   suits = (c: IScreenProxy) => c.type === "screen";
-  getEval = (
+  getEval = async (
     cs: ShCommands,
     c: IScreenProxy,
   ) => ["screen", "-S", c.name, "-p", "0", "-X", "stuff", `${cs.join(" ")}^M`];

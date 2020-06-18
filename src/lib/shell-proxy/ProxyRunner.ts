@@ -51,6 +51,8 @@ export class ProxyRunner {
     }
 
     const commands = new CommandBuilder();
+    const exec = async (cs: ShCommands) =>
+      cs.length === 0 ? "" : await this.exec(commands.with(cs));
     for (let i in configs) {
       const config = configs[i];
       const isLast = parseInt(i) === configs.length - 1;
@@ -58,15 +60,14 @@ export class ProxyRunner {
         await this.createProxyCommands(
           config,
           params,
-          async (cs) =>
-            cs.length === 0 ? "" : await this.exec(commands.with(cs)),
+          exec,
           isLast,
         ),
       );
     }
 
     commands.add(
-      this.getLastProxyCommands(configs, isEval, lastArgs),
+      await this.getLastProxyCommands(configs, isEval, lastArgs, exec),
     );
 
     if (dry) {
@@ -77,19 +78,20 @@ export class ProxyRunner {
     return commands.toArray();
   };
 
-  private getLastProxyCommands(
+  private getLastProxyCommands = async (
     configs: ProxyConfig[],
     isEval: boolean,
     lastProxyArgs: ShCommands,
-  ): ShCommands {
+    exec: ExecSubCommand,
+  ) => {
     const [config] = configs.slice(-1);
     const handler = this.getHandler(config);
     return (isEval
-      ? handler.getEval(lastProxyArgs, config)
+      ? await handler.getEval(lastProxyArgs, config, exec)
       : handler.getTty(config).concat(lastProxyArgs))
       .map((a) => this.enrichArgument(a, config))
       .map((a) => configs.length > 1 ? `'${a}'` : a);
-  }
+  };
 
   private exec = async (cs: CommandBuilder) => {
     this.log(cs);

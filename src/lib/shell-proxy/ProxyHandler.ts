@@ -16,7 +16,11 @@ export abstract class ProxyHandler<Config extends ProxyConfig> {
 
   abstract getBase(c: Config): ShCommands;
 
-  getEval = (cs: ShCommands, c: Config): ShCommands => cs;
+  getEval = async (
+    cs: ShCommands,
+    config: Config,
+    exec: ExecSubCommand,
+  ): Promise<ShCommands> => cs;
   getTty = (c: Config): ShCommands => [];
 
   enrichArgument = (a: string, c: Config) => a;

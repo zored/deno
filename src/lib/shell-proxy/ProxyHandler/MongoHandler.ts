@@ -15,7 +15,7 @@ export class MongoHandler extends ProxyHandler<MongoConfig> {
   getChainBase = () => [];
   getBase = () => [];
   getTty = (c: MongoConfig) => this.mongo(c);
-  getEval = (cs: ShCommands, c: MongoConfig): ShCommands => {
+  getEval = async (cs: ShCommands, c: MongoConfig) => {
     const first = cs[0];
     switch (first) {
       case "dump":
@@ -35,12 +35,22 @@ export class MongoHandler extends ProxyHandler<MongoConfig> {
   };
 
   enrichArgument = (a: string, c: MongoConfig) => {
+    const isEval = this.lastArgument === "--eval";
+
+    // Replace JSON:
+    const jsonMark = "j ";
+    if (a.indexOf(jsonMark) === 0) {
+      a = a.substring(jsonMark.length);
+      a = `JSON.stringify(${a})`;
+    }
+
     if (c.slave !== true) {
       return a;
     }
-    if (this.lastArgument === "--eval") {
+    if (isEval) {
       a = `rs.slaveOk(); ${a}`;
     }
+
     this.lastArgument = a;
     return a;
   };

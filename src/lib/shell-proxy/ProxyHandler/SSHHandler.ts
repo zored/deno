@@ -17,10 +17,14 @@ export class SSHHandler extends ProxyHandler<SSHConfig> {
 
   suits = (c: SSHConfig) => c.type === "ssh";
 
-  getEval = (cs: ShCommands, c: SSHConfig): ShCommands => {
+  getEval = async (
+    cs: ShCommands,
+    c: SSHConfig,
+    exec: ExecSubCommand,
+  ): Promise<ShCommands> => {
     switch (cs[0]) {
       case "mount":
-        return this.mount(c);
+        return this.mount(c, exec);
     }
 
     return this.ssh(c, cs);
@@ -28,20 +32,44 @@ export class SSHHandler extends ProxyHandler<SSHConfig> {
 
   getTty = (c: SSHConfig): ShCommands => this.ssh(c);
 
-  handleParams = (
+  handleParams = async (
     c: SSHConfig,
     params: Params,
     exec: ExecSubCommand,
-  ): Promise<any> => exec(this.mount(c));
+  ) => exec(await this.mount(c, exec));
 
-  private mount = (c: SSHConfig): ShCommands =>
-    Object
-      .entries(c.volumesHostGuest || {})
-      .slice(0, 1)
-      .flatMap(([host, guest]) => ["sshfs", `${c.sshAlias}:${guest}`, host]);
+  private mount = async (
+    c: SSHConfig,
+    exec: ExecSubCommand,
+  ): Promise<ShCommands> => {
+    const hostGuests = Object.entries(c.volumesHostGuest || {});
+    switch (hostGuests.length) {
+      case 0:
+        return [];
+      case 1:
+        break;
+      default:
+        throw new Error("Multiple SSH mounts are not supported yet.");
+    }
+    const [host, guest] = hostGuests[0];
+    if (await this.mounted(host, exec)) {
+      return [];
+    }
+    return ["sshfs", `${c.sshAlias}:${guest}`, host];
+  };
 
   private ssh = (
     c: SSHConfig,
     cs: ShCommands = [],
   ) => ["ssh", "-t", c.sshAlias, ...cs];
+
+  private mounted = async (
+    hostPath: string,
+    exec: ExecSubCommand,
+  ): Promise<boolean> => {
+    hostPath = hostPath.replace(/\/$/, "");
+    return (await exec(["mount"]))
+      .split("\n")
+      .some((m) => m.indexOf(hostPath) >= 0);
+  };
 }
