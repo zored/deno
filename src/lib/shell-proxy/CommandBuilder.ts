@@ -6,7 +6,11 @@ export class CommandBuilder {
   add = (line: ShCommands) => this.commands.push(line);
   toString = () =>
     this.commands
-      .map((word) => word.join(" "))
+      .map((cs) =>
+        cs
+          .map((c) => this.escapeCommand(c))
+          .join(" ")
+      )
       .map((line, i) => " ".repeat(i) + line)
       .join(" \\\n");
 
@@ -14,4 +18,6 @@ export class CommandBuilder {
 
   with = (cs: ShCommands) =>
     new CommandBuilder(this.commands.slice().concat(cs));
+
+  private escapeCommand = (c: string) => /[\s]/.test(c) ? `'${c}'` : c;
 }

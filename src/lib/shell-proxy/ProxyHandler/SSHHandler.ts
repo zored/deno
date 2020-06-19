@@ -2,6 +2,8 @@ import { ProxyHandler } from "../ProxyHandler.ts";
 import { ProxyConfig } from "../ProxyConfigs.ts";
 import { ExecSubCommand, Params, ShCommands } from "../ProxyRunner.ts";
 
+type HostGuest = [string, string];
+
 export interface SSHConfig extends ProxyConfig {
   type: "ssh";
   sshAlias: string;
@@ -27,6 +29,13 @@ export class SSHHandler extends ProxyHandler<SSHConfig> {
         return this.mount(c, exec);
     }
 
+    if (cs.length === 1) {
+      const hostGuest = (this.hostGuests(c))[0];
+      if (hostGuest) {
+        cs[0] = `cd ${hostGuest[1]} && ${cs[0]}`;
+      }
+    }
+
     return this.ssh(c, cs);
   };
 
@@ -38,11 +47,14 @@ export class SSHHandler extends ProxyHandler<SSHConfig> {
     exec: ExecSubCommand,
   ) => exec(await this.mount(c, exec));
 
+  private hostGuests = (c: SSHConfig) =>
+    Object.entries(c.volumesHostGuest || {});
+
   private mount = async (
     c: SSHConfig,
     exec: ExecSubCommand,
   ): Promise<ShCommands> => {
-    const hostGuests = Object.entries(c.volumesHostGuest || {});
+    const hostGuests = this.hostGuests(c);
     switch (hostGuests.length) {
       case 0:
         return [];
@@ -51,11 +63,23 @@ export class SSHHandler extends ProxyHandler<SSHConfig> {
       default:
         throw new Error("Multiple SSH mounts are not supported yet.");
     }
-    const [host, guest] = hostGuests[0];
+    const hostGuest = hostGuests[0];
+    const [host, guest] = hostGuest;
     if (await this.mounted(host, exec)) {
       return [];
     }
+    await this.createDirs(c, exec, hostGuest);
     return ["sshfs", `${c.sshAlias}:${guest}`, host];
+  };
+
+  private createDirs = async (
+    c: SSHConfig,
+    exec: ExecSubCommand,
+    [host, guest]: HostGuest,
+  ) => {
+    const mkdir = (dir: string): ShCommands => ["mkdir", "-p", dir];
+    await exec(mkdir(host));
+    await exec(this.ssh(c, mkdir(guest)));
   };
 
   private ssh = (
