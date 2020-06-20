@@ -5,7 +5,7 @@ import {
 } from "../deps.ts";
 const { args, readAll, writeTextFile } = Deno;
 const responseBody = args[0] || '{"ok": true}';
-const port = args[1];
+const port = parseInt(args[1]) || 3333;
 const app = new Application({ port });
 const router = new Router();
 
