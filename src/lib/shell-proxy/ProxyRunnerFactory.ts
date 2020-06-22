@@ -22,6 +22,7 @@ export const runShellProxyFromArgs = async (
       string: ["merge", "config"],
       alias: {
         "eval": ["e"],
+        "run": ["r"],
         "verbose": ["v"],
         "merge": ["m"],
         "config": ["c"],
@@ -32,6 +33,7 @@ export const runShellProxyFromArgs = async (
   const {
     _,
     eval: isEval,
+    run: isRun,
     verbose,
     config,
     merge,
@@ -68,6 +70,7 @@ export const runShellProxyFromArgs = async (
     name + "",
     deepestArgs.map((a) => a + ""),
     isEval,
+    isRun,
     merge ? JSON.parse(merge) : {},
     dry,
   );

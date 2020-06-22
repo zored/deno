@@ -38,24 +38,31 @@ export class Runner {
   run = async (
     command: ShCommand,
     options: Partial<Deno.RunOptions> = {},
-  ): Promise<void> =>
-    await this.assertStatus(await this.getProcess(options, command));
+  ): Promise<void> => {
+    options.stdin = "inherit";
+    await this.assertStatus(await this.getProcess(options, command), command);
+  };
 
   output = async (
     command: ShCommand,
     options: Partial<Deno.RunOptions> = {},
   ): Promise<string> => {
     options.stdout = "piped";
+    options.stderr = "inherit";
+    options.stdin = "inherit";
+
     const process = this.getProcess(options, command);
     const output = await process.output();
-    await this.assertStatus(process);
+    await this.assertStatus(process, command);
     return new TextDecoder().decode(output);
   };
 
-  private assertStatus = async (process: Deno.Process) => {
+  private assertStatus = async (process: Deno.Process, command: ShCommand) => {
     const { code } = await process.status();
     if (code !== 0) {
-      throw new Error(`Shell command exited with code ${code}.`);
+      throw new Error(
+        `Command ${JSON.stringify(command)} exited with code ${code}.`,
+      );
     }
   };
   private getProcess = (

@@ -12,10 +12,38 @@ export class ProxyConfigTree {
   constructor(private configs: ProxyConfigs) {
   }
 
-  getBranch = (id: Id): ProxyConfig[] => {
-    const node = this.find((c) => [c.path, c.proxy.globalAlias].includes(id));
-    return this.getAncestors(node).map((c) => c.proxy);
+  getBranch = (id: Id): ProxyConfig[] =>
+    this
+      .getAncestors(this.nodeById(id))
+      .map((c) => c.proxy);
+
+  private throwOnUndefined = <T>(t: T | undefined): T => {
+    if (t === undefined) {
+      throw new Error(`Value is undefined.`);
+    }
+    return t;
   };
+
+  getRunsById = (runName: string) => {
+    const [a, b] = runName.split(":");
+    const [runId, nodeId] = b === undefined ? [a] : [b, a];
+    const tree = nodeId
+      ? new ProxyConfigTree(
+        this.throwOnUndefined<IConfig>(this.nodeById(nodeId)).proxy,
+      )
+      : this;
+    return tree.flatMap((c) =>
+      Object
+        .entries(c.proxy.run || {})
+        .filter(([id]) => id === runId)
+    );
+  };
+
+  private globalRunId = (n: string, c: IConfig) =>
+    `${c.proxy.globalAlias}:${n}`;
+
+  private nodeById = (id: string) =>
+    this.find((c) => [c.path, c.proxy.globalAlias].includes(id));
 
   private map = <T>(f: (c: IConfig) => T): T[] => {
     const result: T[] = [];

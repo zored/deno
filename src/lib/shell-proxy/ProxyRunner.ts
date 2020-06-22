@@ -1,4 +1,4 @@
-import { green } from "../../../deps.ts";
+import { green, parse } from "../../../deps.ts";
 import { sh, shOut } from "../command.ts";
 import { ProxyHandler } from "./ProxyHandler.ts";
 import { SSHHandler } from "./ProxyHandler/SSHHandler.ts";
@@ -15,6 +15,7 @@ export type ShCommands = string[];
 export type ExecSubCommand = (command: ShCommands) => Promise<string>;
 
 export class ProxyRunner {
+  public readonly configs: ProxyConfigTree;
   private readonly handlers: ProxyHandler<any>[] = [
     new SSHHandler(),
     new DockerHandler(),
@@ -22,7 +23,6 @@ export class ProxyRunner {
     new ScreenHandler(),
     new K8SHandler(),
   ];
-  public readonly configs: ProxyConfigTree;
 
   constructor(
     configs: ProxyConfigs,
@@ -34,17 +34,46 @@ export class ProxyRunner {
   }
 
   run = async (
-    pathOrAlias: string,
+    id: string,
     lastArgs: ShCommands,
     isEval: boolean,
+    isRun: boolean,
     params: Params,
     dry: boolean,
   ): Promise<ShCommands> => {
-    const configs = this.configs.getBranch(pathOrAlias);
+    if (isRun) {
+      const runs = this.configs.getRunsById(id);
+      if (runs.length !== 1) {
+        throw new Error(
+          `Found ${runs.length} runs '${id}': ${JSON.stringify(runs)}`,
+        );
+      }
+
+      console.log();
+      const [[, rawRunCommand]] = runs;
+
+      const stringRunCommand = Array.isArray(rawRunCommand)
+        ? rawRunCommand.join(" && ")
+        : rawRunCommand;
+
+      const runCommandWithArgs = Object
+        .entries(parse(lastArgs))
+        .filter(([n]) => n !== "_")
+        .reduce(
+          (c, [name, value]) =>
+            c.replace(new RegExp(`\\{\\{${name}\\}\\}`, "g"), value),
+          stringRunCommand,
+        );
+
+      const commands: ShCommands = ["/bin/sh", "-c", runCommandWithArgs];
+      return this.handleCommands(new CommandBuilder([commands]), dry);
+    }
+
+    const configs = this.configs.getBranch(id);
     if (!configs.length) {
-      console.log(`No proxies for '${pathOrAlias}'.`);
+      console.log(`No proxies for '${id}'.`);
       throw new Error(
-        `No proxy branch found for path '${pathOrAlias}'. Possible options are:${
+        `No proxy branch found for path '${id}'. Possible options are:${
           this.configs.getIds().sort().map((i) => `\n${i}`).join("")
         }`,
       );
@@ -70,13 +99,17 @@ export class ProxyRunner {
       await this.getLastProxyCommands(configs, isEval, lastArgs, exec),
     );
 
+    return await this.handleCommands(commands, dry);
+  };
+
+  private async handleCommands(commands: CommandBuilder, dry: boolean) {
     if (dry) {
       this.log(commands, true);
     } else {
       await this.tty(commands);
     }
     return commands.toArray();
-  };
+  }
 
   private getLastProxyCommands = async (
     configs: ProxyConfig[],
@@ -105,7 +138,7 @@ export class ProxyRunner {
 
   private log(cs: CommandBuilder, force = false) {
     if (force || this.debug) {
-      console.log(green(cs.toString()));
+      console.error(green(cs.toString()));
     }
   }
 

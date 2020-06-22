@@ -6,6 +6,7 @@ export interface ProxyConfig {
   type: string;
   flags?: Flags;
   children?: ProxyConfigs;
+  run?: Record<string, string | string[]>;
 }
 
 export type ProxyConfigs = ProxyConfig | ProxyConfig[];

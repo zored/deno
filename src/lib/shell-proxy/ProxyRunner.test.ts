@@ -69,6 +69,7 @@ test("test eval", async () => {
       "/dev/docker/mongo",
       ["db.people", ".find()"],
       true,
+      false,
       {},
       true,
     ),
@@ -83,6 +84,7 @@ test("test eval", async () => {
     runner.run(
       "custom_cmd",
       ["--some", "value"],
+      false,
       false,
       { "value": "custom.sh" },
       true,
