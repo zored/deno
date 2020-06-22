@@ -23,6 +23,16 @@ export class IssueCacherFactory {
     );
 }
 
+const debug = (
+  f: (
+    l: (...p: Parameters<typeof console.log>) => ReturnType<typeof console.log>,
+  ) => void,
+) => {
+  if (Deno.args.includes("-v")) {
+    f(console.log);
+  }
+};
+
 export class BrowserClientFactory {
   create = async () => {
     const auth = {
@@ -30,13 +40,15 @@ export class BrowserClientFactory {
       cookies: env("JIRA_COOKIES") ?? "",
     };
 
+    const path = "jira-auth.json";
     try {
       const file = JSON.parse(
-        await readTextFile(join(env("HOME") ?? ".", "jira-auth.json")),
+        await readTextFile(join(env("HOME") ?? ".", path)),
       );
       auth.host = file.host || auth.host;
       auth.cookies = file.cookies || auth.cookies;
     } catch (e) {
+      debug((l) => l(`could not open ${path}`, { e }));
       // That is ok.
     }
 
@@ -100,6 +112,7 @@ export class BrowserClient {
       "method": "POST",
       "mode": "cors",
     };
+    debug(() => console.log(this.init));
   }
 
   regStartWork = async () =>
@@ -153,19 +166,20 @@ export class BrowserClient {
   private get = (path: string, init: Partial<RequestInit> = {}) =>
     this.fetch(path, init);
 
-  private fetch = (path: string, init: Partial<RequestInit> = {}) => {
-    const url = `${this.host}/${path.replace(/^\//, "")}`;
-    console.log(url, init);
-    return fetch(
-      url,
+  private fetch = (path: string, init: Partial<RequestInit> = {}) =>
+    fetch(
+      `${this.host}/${path.replace(/^\//, "")}`,
       {
         ...this.init,
         ...init,
       },
     );
-  };
 
-  private json = async (p: Promise<Response>) => (await p).json();
+  private json = async (p: Promise<Response>) => {
+    const t = await (await p).text();
+    debug(() => console.log(t));
+    return JSON.parse(t);
+  };
   private text = async (p: Promise<Response>) => (await p).text();
 
   async fetchAllIssues() {
