@@ -166,8 +166,8 @@ sp -e -- db1 'db.people.count()'
             "type": "docker",
             "image": "mongo:4.2.0",
             "children": {
-              "globalAlias": "db1",
-              "pathAlias": "investstats_prod_read",
+              "globalAlias": "my-db",
+              "pathAlias": "my-db",
               "type": "mongo",
               "uri": "mongodb://localhost:12345/dbname",
               "slave": true,
