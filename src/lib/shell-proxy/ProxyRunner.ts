@@ -49,7 +49,6 @@ export class ProxyRunner {
         );
       }
 
-      console.log();
       const [[, rawRunCommand]] = runs;
 
       const stringRunCommand = Array.isArray(rawRunCommand)

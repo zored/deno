@@ -38,10 +38,13 @@ export class MongoHandler extends ProxyHandler<MongoConfig> {
     const isEval = this.lastArgument === "--eval";
 
     // Replace JSON:
-    const jsonMark = "j ";
-    if (a.indexOf(jsonMark) === 0) {
-      a = a.substring(jsonMark.length);
-      a = `JSON.stringify(${a})`;
+    const prettyMark = "jp ";
+    const jsonMarks = ["j ", prettyMark];
+    const jsonMark = jsonMarks.find((m) => a.indexOf(m) === 0);
+    if (jsonMark) {
+      a = a.substring(jsonMarks.length);
+      const pretty = jsonMark === prettyMark ? ",null,2" : "";
+      a = `JSON.stringify(${a}${pretty})`;
     }
 
     if (c.slave !== true) {
