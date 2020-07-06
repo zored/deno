@@ -14,6 +14,8 @@ export type Params = Record<string, any>;
 export type ShCommands = string[];
 export type ExecSubCommand = (command: ShCommands) => Promise<string>;
 
+export type RunResult = ShCommands | string | undefined;
+
 export class ProxyRunner {
   public readonly configs: ProxyConfigTree;
   private readonly handlers: ProxyHandler<any>[] = [
@@ -27,6 +29,7 @@ export class ProxyRunner {
   constructor(
     configs: ProxyConfigs,
     private readonly debug = false,
+    private readonly retrieveOutput = false,
     handlers: ProxyHandler<any>[] = [],
   ) {
     this.configs = new ProxyConfigTree(configs);
@@ -40,7 +43,7 @@ export class ProxyRunner {
     isRun: boolean = false,
     params: Params = {},
     dry: boolean = false,
-  ): Promise<ShCommands> => {
+  ): Promise<RunResult> => {
     if (isRun) {
       const runs = this.configs.getRunsById(id);
       if (runs.length !== 1) {
@@ -104,10 +107,9 @@ export class ProxyRunner {
   private async handleCommands(commands: CommandBuilder, dry: boolean) {
     if (dry) {
       this.log(commands, true);
-    } else {
-      await this.tty(commands);
+      return commands.toArray();
     }
-    return commands.toArray();
+    return await this.execOrTty(commands);
   }
 
   private getLastProxyCommands = async (
@@ -132,8 +134,13 @@ export class ProxyRunner {
 
   private tty = async (cs: CommandBuilder) => {
     this.log(cs);
-    await sh(cs.toArray());
+    const csa = cs.toArray();
+    await sh(csa);
+    return csa;
   };
+
+  private execOrTty = async (cs: CommandBuilder) =>
+    this.retrieveOutput ? this.exec(cs) : this.tty(cs);
 
   private log(cs: CommandBuilder, force = false) {
     if (force || this.debug) {

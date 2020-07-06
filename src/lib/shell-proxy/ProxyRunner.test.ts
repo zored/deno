@@ -1,4 +1,4 @@
-import { ProxyRunner, ShCommands } from "./ProxyRunner.ts";
+import { ProxyRunner, RunResult, ShCommands } from "./ProxyRunner.ts";
 import { assertEquals } from "../../../deps.ts";
 import { MongoConfig } from "./ProxyHandler/MongoHandler.ts";
 import { DockerConfig } from "./ProxyHandler/DockerHandler.ts";
@@ -47,15 +47,16 @@ test("test eval", async () => {
       } as SSHConfig,
     ],
     false,
+    false,
     [new CustomHandler()],
   );
 
   const assertCommands = async (
     expected: ShCommands,
-    cs: Promise<ShCommands>,
+    cs: Promise<RunResult>,
   ) =>
     assertEquals(
-      (await cs).join(" "),
+      ((await cs) as string[]).join(" "),
       expected.join(" "),
     );
 
