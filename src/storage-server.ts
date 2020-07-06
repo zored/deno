@@ -11,7 +11,7 @@ const createObjectRoute = () => {
   const router = new Router();
   let storage: object = { hello: "world" };
   router.get("/", () => storage);
-  router.post("/", ({ req: {body} }) => {
+  router.post("/", ({ req: { body } }) => {
     if ((typeof body) !== "object") {
       throw new Error(`Invalid JSON request.`);
     }
@@ -28,7 +28,7 @@ const createNumbersRoute = () => {
   const numbers: Record<string, [Date, number][]> = {};
 
   // Create:
-  router.post("/:name", ({ req: {params: {name}, body} }) => {
+  router.post("/:name", ({ req: { params: { name }, body } }) => {
     if (!Number.isFinite(body)) {
       throw new Error(`Request JSON with number in body.`);
     }
@@ -44,7 +44,7 @@ const createNumbersRoute = () => {
   router.get("/", () => numbers);
   router.get(
     "/:name",
-    ({ req: {params: {name}} }) => numbers[parseName(name)],
+    ({ req: { params: { name } } }) => numbers[parseName(name)],
   );
 
   // Delete:
@@ -56,7 +56,7 @@ const createNumbersRoute = () => {
     "/",
     () => Object.keys(numbers).forEach((k) => delete numbers[k]),
   );
-  router.delete("/:name", ({ req: {params: {name}} }) => {
+  router.delete("/:name", ({ req: { params: { name } } }) => {
     deleteOne(parseName(name));
     return success;
   });

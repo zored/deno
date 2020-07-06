@@ -9,3 +9,4 @@ export * from "./src/lib/jira.ts";
 export * from "./src/lib/print.ts";
 export * from "./src/lib/shell-completion.ts";
 export * from "./src/lib/url.ts";
+export * from "./src/lib/shell-proxy/mod.ts";

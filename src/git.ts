@@ -27,7 +27,7 @@ new Commands({
     await git.pushNewTag(prefix + version);
   },
   message: {
-    add: ({ _:message }) =>
+    add: ({ _: message }) =>
       messageBuilders.each((b) =>
         b.add(message.join(" "))
       ),

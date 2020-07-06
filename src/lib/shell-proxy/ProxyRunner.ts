@@ -34,12 +34,12 @@ export class ProxyRunner {
   }
 
   run = async (
-    id: string,
-    lastArgs: ShCommands,
-    isEval: boolean,
-    isRun: boolean,
-    params: Params,
-    dry: boolean,
+    id: string = "default",
+    lastArgs: ShCommands = [],
+    isEval: boolean = true,
+    isRun: boolean = false,
+    params: Params = {},
+    dry: boolean = false,
   ): Promise<ShCommands> => {
     if (isRun) {
       const runs = this.configs.getRunsById(id);

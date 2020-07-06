@@ -1,6 +1,6 @@
 import { join } from "../../deps.ts";
 
-const { writeTextFile, readTextFile, env: {get: env} } = Deno;
+const { writeTextFile, readTextFile, env: { get: env } } = Deno;
 import { parseQuery } from "./url.ts";
 
 export type IssueKey = string;
