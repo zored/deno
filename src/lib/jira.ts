@@ -1,7 +1,7 @@
 import { join } from "../../deps.ts";
 
 const { writeTextFile, readTextFile, env: { get: env } } = Deno;
-import { parseQuery } from "./url.ts";
+import { parseQuery, QueryObject } from "./url.ts";
 
 export type IssueKey = string;
 export interface ITableIssue {
@@ -88,32 +88,54 @@ export class IssuesCacher {
     return this.allIssues;
   }
 }
+declare module JiraApi {
+  export interface Suggestion {
+    name: string;
+    id: number;
+    stateKey: string;
+    boardName: string;
+    date: Date;
+  }
+
+  export interface AllMatch {
+    name: string;
+    id: number;
+    stateKey: string;
+    boardName: string;
+    date: string;
+  }
+
+  export interface SprintAutocomplete {
+    suggestions: Suggestion[];
+    allMatches: AllMatch[];
+  }
+}
 
 export class BrowserClient {
-  private readonly init: RequestInit;
-
   constructor(private readonly host: string, private readonly cookie: string) {
     this.host = this.host.replace(/\/+$/, "");
-    this.init = {
-      "headers": {
-        "__amdmodulename": "jira/issue/utils/xsrf-token-header",
-        "accept": "application/json",
-        "accept-language": "en,ru-RU;q=0.9,ru;q=0.8",
-        "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
-        "x-atlassian-token": "no-check",
-        "x-requested-with": "XMLHttpRequest",
-        cookie,
-      },
-      "referrer": `${this.host}/`,
-      "referrerPolicy": "no-referrer-when-downgrade",
-      "method": "POST",
-      "mode": "cors",
-    };
-    debug(() => console.log(this.init));
   }
+
+  private init = (form = true): RequestInit => ({
+    "headers": {
+      "__amdmodulename": "jira/issue/utils/xsrf-token-header",
+      "accept": "application/json",
+      "accept-language": "en,ru-RU;q=0.9,ru;q=0.8",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "x-atlassian-token": "no-check",
+      "x-requested-with": "XMLHttpRequest",
+      "cookie": this.cookie,
+      ...(form
+        ? { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" }
+        : {}),
+    },
+    "referrer": `${this.host}/`,
+    "referrerPolicy": "no-referrer-when-downgrade",
+    "method": "POST",
+    "mode": "cors",
+  });
 
   regStartWork = async () =>
     this.json(this.post("/rest/remote-work/1.0/userWorklog/regStartWork"));
@@ -144,8 +166,89 @@ export class BrowserClient {
     const response = await this.post(actionPath ?? "", body);
   }
 
+  createIssue = async (query: QueryObject) => {
+    const { formToken, atl_token } = await this.createIssueForm(query);
+    const result = await this.doCreateIssue({
+      formToken,
+      atl_token,
+      ...query,
+    });
+
+    const key = result?.createdIssueDetails?.key;
+    const url = key ? `${this.host}/browse/${key}` : null;
+    return [result, url];
+  };
+
+  getSprint = async (query: string) => {
+    const { suggestions } = await this.fetchSprints(query);
+    if (suggestions.length !== 1) {
+      throw new Error(
+        `Got invalid suggestions: ${JSON.stringify(suggestions)}`,
+      );
+    }
+    return suggestions[0].id;
+  };
+
+  private fetchSprints = (query: string): Promise<JiraApi.SprintAutocomplete> =>
+    this.json(
+      this.get(
+        `/rest/greenhopper/1.0/sprint/picker?` + parseQuery({
+          query,
+          _: "" + new Date().getTime(),
+        }),
+        {},
+        false,
+      ),
+    );
+
   private getIssueHtml = (issue: IssueKey) =>
     this.text(this.get(`/browse/${issue}`));
+
+  private createIssueForm = async (query: QueryObject) =>
+    this.json(
+      this.post(
+        "/secure/QuickCreateIssue!default.jspa?decorator=none",
+        parseQuery({
+          "retainValues": "true",
+          "customfield_15501": "",
+          "summary": "",
+          "description": "",
+          "toggle": "true",
+          "fieldsToRetain": [
+            "project",
+            "issuetype",
+            "summary",
+            "description",
+            "attachment",
+          ],
+          // "formToken": "9cfd70c84972b6fe12ec015221ddf756858e60b4",
+          ...query,
+        }),
+      ),
+    );
+
+  private doCreateIssue = async (query: Record<string, string>) =>
+    this.json(
+      this.post(
+        "/secure/QuickCreateIssue.jspa?decorator=none",
+        parseQuery({
+          "dnd-dropzone": "",
+          "duedate": "",
+          "fieldsToRetain": [
+            "project",
+            "issuetype",
+            "components",
+            "customfield_21005",
+            "customfield_10051",
+            "customfield_10050",
+            "customfield_15401",
+            "customfield_15500",
+            "duedate",
+          ],
+          ...query,
+        }),
+      ),
+    );
 
   fetchIssues = async (startIndex = 0) =>
     this.json(this.post(
@@ -161,22 +264,31 @@ export class BrowserClient {
       }),
     ));
 
-  private post = (path: string, body: BodyInit | null = null) =>
-    this.fetch(path, { body });
-  private get = (path: string, init: Partial<RequestInit> = {}) =>
-    this.fetch(path, init);
+  private post = (path: string, body: BodyInit | null = null, form = true) =>
+    this.fetch(path, { body }, form);
+  private get = (path: string, init: Partial<RequestInit> = {}, form = true) =>
+    this.fetch(path, {
+      ...init,
+      method: "GET",
+    }, form);
 
-  private fetch = (path: string, init: Partial<RequestInit> = {}) =>
+  private fetch = (
+    path: string,
+    init: Partial<RequestInit> = {},
+    form = true,
+  ) =>
     fetch(
       `${this.host}/${path.replace(/^\//, "")}`,
       {
-        ...this.init,
+        ...this.init(form),
         ...init,
       },
     );
 
   private json = async (p: Promise<Response>) => {
-    const t = await (await p).text();
+    const response = await p;
+    debug((l) => l(response));
+    const t = await response.text();
     debug(() => console.log(t));
     return JSON.parse(t);
   };
