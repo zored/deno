@@ -1,9 +1,10 @@
 #!/usr/bin/env deno run --allow-net --allow-read --allow-env --allow-write
 
-import { Commands, CommandArgs } from "./lib/command.ts";
+import { CommandArgs, Commands } from "./lib/command.ts";
 import { print } from "./lib/print.ts";
 import { BrowserClientFactory, IssueCacherFactory } from "./lib/jira.ts";
 import { QueryObject } from "./lib/url.ts";
+
 const { env: { get: env } } = Deno;
 
 const jira = await new BrowserClientFactory().create();
@@ -15,6 +16,7 @@ new Commands({
   get: async (a) => print(await one(a)),
   action: async ({ _: [issue, action = 241] }) =>
     await jira.makeAction(issue + "", parseInt(action + "", 10)),
+  delete: async ({ _: [key] }) => print(await jira.deleteIssue(key + "")),
   getForPrompt: async (a) => print((await one(a)).replace(/[\[\]]/g, "")),
   create: async ({ _: [q] }) => {
     Deno.writeTextFileSync("a.json", q + "");

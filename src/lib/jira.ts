@@ -1,9 +1,10 @@
 import { join } from "../../deps.ts";
-
-const { writeTextFile, readTextFile, env: { get: env } } = Deno;
 import { parseQuery, QueryObject } from "./url.ts";
 
+const { writeTextFile, readTextFile, env: { get: env } } = Deno;
+
 export type IssueKey = string;
+
 export interface ITableIssue {
   key: IssueKey;
   status: string;
@@ -58,7 +59,10 @@ export class BrowserClientFactory {
 
 export class IssuesCacher {
   private allIssues?: ITableIssue[] = undefined;
-  constructor(private api: BrowserClient, private repo: Repo) {}
+
+  constructor(private api: BrowserClient, private repo: Repo) {
+  }
+
   async update() {
     const fresh = await this.repo.isFresh();
     if (fresh) {
@@ -88,6 +92,7 @@ export class IssuesCacher {
     return this.allIssues;
   }
 }
+
 declare module JiraApi {
   export interface Suggestion {
     name: string;
@@ -116,55 +121,58 @@ export class BrowserClient {
     this.host = this.host.replace(/\/+$/, "");
   }
 
-  private init = (form = true): RequestInit => ({
-    "headers": {
-      "__amdmodulename": "jira/issue/utils/xsrf-token-header",
-      "accept": "application/json",
-      "accept-language": "en,ru-RU;q=0.9,ru;q=0.8",
-      "sec-fetch-dest": "empty",
-      "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin",
-      "x-atlassian-token": "no-check",
-      "x-requested-with": "XMLHttpRequest",
-      "cookie": this.cookie,
-      ...(form
-        ? { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" }
-        : {}),
-    },
-    "referrer": `${this.host}/`,
-    "referrerPolicy": "no-referrer-when-downgrade",
-    "method": "POST",
-    "mode": "cors",
-  });
-
   regStartWork = async () =>
     this.json(this.post("/rest/remote-work/1.0/userWorklog/regStartWork"));
 
-  makeAction = async (issue: IssueKey, action = 241) => {
-    const actionPath = await this.getActionPathFromIssuePage(issue, action);
+  makeAction = async (key: IssueKey, action = 241) => {
+    const actionPath = this.findActionPath(
+      await this.getPaths(key),
+      key,
+      action,
+    );
+    if (actionPath instanceof Error) {
+      throw actionPath;
+    }
     const response = await this.get(actionPath);
     console.log(response);
   };
 
-  private async postActionForm(action: number, actionPath: string) {
-    const issueId = "0";
-    const formToken = ""; // - take from form.
-    const atl_token = ""; // - take from path.
-    const Transition = "In Progress"; // - do we need it?
-    const sprintField = "customfield_15401";
-    const body = new URLSearchParams({
-      action: action + "",
-      id: issueId,
-      formToken,
-      [sprintField]: "14020",
-      comment: "",
-      commentLevel: "",
-      atl_token,
-      Transition,
-    });
+  deleteIssue = async (key: IssueKey) => {
+    const paths = await this.getPaths(key);
+    const id = this.getIssueId(paths, key);
+    const deletePath = this.findDeletePath(paths, key);
+    if (deletePath instanceof Error) {
+      throw deletePath;
+    }
+    if (deletePath.indexOf(id + "") === -1) {
+      throw new Error(
+        `Invalid delete path ${deletePath} for issue ${key} (id: ${id}).`,
+      );
+    }
 
-    const response = await this.post(actionPath ?? "", body);
-  }
+    // Find token:
+    let atl_token = "";
+    (await this.getHtmlPaths(await this.text(this.get(deletePath))))
+      .some((p) => {
+        const matches = p.match(/&atl_token=(?<token>[^&]+)$/);
+        if (!matches) {
+          return false;
+        }
+        atl_token = matches?.groups?.token || "";
+        return true;
+      });
+
+    return this.text(
+      this.post(
+        "/secure/DeleteIssue.jspa",
+        parseQuery({
+          id,
+          confirm: "true",
+          atl_token,
+        }),
+      ),
+    );
+  };
 
   createIssue = async (query: QueryObject) => {
     const { formToken, atl_token } = await this.createIssueForm(query);
@@ -187,6 +195,69 @@ export class BrowserClient {
       );
     }
     return suggestions[0].id;
+  };
+
+  fetchIssues = async (startIndex = 0) =>
+    this.json(this.post(
+      "/rest/issueNav/1/issueTable",
+      parseQuery({
+        startIndex: [startIndex.toString()],
+        jql: [
+          encodeURIComponent(
+            "assignee = currentUser() or assignee was currentUser() and updated > startOfMonth(-1) order by updated desc",
+          ),
+        ],
+        layoutKey: ["split-view"],
+      }),
+    ));
+
+  async fetchAllIssues() {
+    const issues: ITableIssue[] = [];
+    for (let startIndex = 0;;) {
+      console.log(`fetching ${startIndex}...`);
+      const response = await this.fetchIssues(startIndex);
+      const { table, pageSize } = response.issueTable;
+      const done = table.length < pageSize;
+      issues.push(...table);
+      if (done) {
+        break;
+      }
+      startIndex += pageSize;
+    }
+    return issues;
+  }
+
+  private init = (form = true): RequestInit => ({
+    "headers": {
+      "__amdmodulename": "jira/issue/utils/xsrf-token-header",
+      "accept": "application/json",
+      "accept-language": "en,ru-RU;q=0.9,ru;q=0.8",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "x-atlassian-token": "no-check",
+      "x-requested-with": "XMLHttpRequest",
+      "cookie": this.cookie,
+      ...(form
+        ? { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" }
+        : {}),
+    },
+    "referrer": `${this.host}/`,
+    "referrerPolicy": "no-referrer-when-downgrade",
+    "method": "POST",
+    "mode": "cors",
+  });
+
+  private getIssueId = (paths: string[], key: IssueKey) => {
+    const path = this.findAddCommentPath(paths, key);
+    if (path instanceof Error) {
+      throw path;
+    }
+    const matches = path.match(/id=(?<id>\d+)/);
+    if (!matches) {
+      throw new Error("No id found in comment url");
+    }
+    return matches.groups?.id || "";
   };
 
   private fetchSprints = (query: string): Promise<JiraApi.SprintAutocomplete> =>
@@ -250,22 +321,9 @@ export class BrowserClient {
       ),
     );
 
-  fetchIssues = async (startIndex = 0) =>
-    this.json(this.post(
-      "/rest/issueNav/1/issueTable",
-      parseQuery({
-        startIndex: [startIndex.toString()],
-        jql: [
-          encodeURIComponent(
-            "assignee = currentUser() or assignee was currentUser() and updated > startOfMonth(-1) order by updated desc",
-          ),
-        ],
-        layoutKey: ["split-view"],
-      }),
-    ));
-
   private post = (path: string, body: BodyInit | null = null, form = true) =>
     this.fetch(path, { body }, form);
+
   private get = (path: string, init: Partial<RequestInit> = {}, form = true) =>
     this.fetch(path, {
       ...init,
@@ -292,52 +350,47 @@ export class BrowserClient {
     debug(() => console.log(t));
     return JSON.parse(t);
   };
+
   private text = async (p: Promise<Response>) => (await p).text();
 
-  async fetchAllIssues() {
-    const issues: ITableIssue[] = [];
-    for (let startIndex = 0;;) {
-      console.log(`fetching ${startIndex}...`);
-      const response = await this.fetchIssues(startIndex);
-      const { table, pageSize } = response.issueTable;
-      const done = table.length < pageSize;
-      issues.push(...table);
-      if (done) {
-        break;
-      }
-      startIndex += pageSize;
-    }
-    return issues;
-  }
-
-  private getActionPathFromIssuePage = async (
+  private findActionPath = (
+    paths: string[],
     issue: IssueKey,
     action: number,
-  ): Promise<string> => {
-    const html = await this.getIssueHtml(issue);
-    const matches = html.matchAll(
-      /href="(?<path>[^"]*?action=(?<action>\d+)[^"]*?)"/g,
-    );
-    if (!matches) {
-      throw new Error(`No `);
-    }
-    const path = Array
-      .from(matches)
-      .map(({ groups }) => ({
-        path: groups?.path ?? "",
-        action: parseInt(groups?.action ?? "0", 10),
-      }))
-      .find(({ action: a }) => a === action)
-      ?.path;
-    if (!path) {
-      throw new Error(`No link with action ${action} found.`);
-    }
-    return path.replace(/&amp;/g, "&");
-  };
+  ): string | Error =>
+    paths
+      .find((p) =>
+        ((p.match(/action=(?<action>\d+)/) as any) || {})?.groups?.action ===
+          action
+      ) ||
+    new Error(`No action ${action} URL found on issue page ${issue}.`);
+
+  private findDeletePath = (paths: string[], issue: IssueKey): string | Error =>
+    paths
+      .find((p) => p.indexOf("DeleteIssue") > 0) ||
+    new Error(`No delete link URL found on issue page ${issue}.`);
+
+  private findAddCommentPath = (
+    paths: string[],
+    issue: IssueKey,
+  ): string | Error =>
+    paths
+      .find((p) => p.indexOf("AddComment") > 0) ||
+    new Error(`No add comment link URL found on issue page ${issue}.`);
+
+  private getHtmlPaths = async <T>(html: string): Promise<string[]> =>
+    Array
+      .from(html.matchAll(/href="(?<path>[^"]*?[^"]*?)"/g))
+      .map(({ groups }) => groups?.path ?? "")
+      .map((p) => p.replace(/&amp;/g, "&"));
+
+  private getPaths = async <T>(issue: IssueKey): Promise<string[]> =>
+    this.getHtmlPaths(await this.getIssueHtml(issue));
 }
 
 export class Repo {
-  constructor(private path: string, private msToLive = 1000 * 60 * 5) {}
+  constructor(private path: string, private msToLive = 1000 * 60 * 5) {
+  }
 
   async isFresh(): Promise<boolean> {
     const cache = await this.loadCache();
@@ -349,13 +402,6 @@ export class Repo {
     await writeTextFile(this.path, JSON.stringify(this.newCache(issues)));
   }
 
-  private newCache(issues: ITableIssue[] = []): ITableIssueCache {
-    return {
-      issues,
-      date: "0",
-    };
-  }
-
   toString(): string {
     return this.path;
   }
@@ -363,6 +409,13 @@ export class Repo {
   async getIssues(): Promise<ITableIssue[]> {
     const cache = await this.loadCache();
     return cache.issues;
+  }
+
+  private newCache(issues: ITableIssue[] = []): ITableIssueCache {
+    return {
+      issues,
+      date: "0",
+    };
   }
 
   private async loadCache(): Promise<ITableIssueCache> {
