@@ -19,7 +19,6 @@ new Commands({
   delete: async ({ _: [key] }) => print(await jira.deleteIssue(key + "")),
   getForPrompt: async (a) => print((await one(a)).replace(/[\[\]]/g, "")),
   create: async ({ _: [q] }) => {
-    Deno.writeTextFileSync("a.json", q + "");
     const query: QueryObject = JSON.parse((q + "").trim());
     for (var i in query) {
       const matches = ("" + query[i]).match(/^%sprint\((.+)\)%$/);

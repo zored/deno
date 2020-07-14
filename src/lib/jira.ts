@@ -125,9 +125,10 @@ export class BrowserClient {
     this.json(this.post("/rest/remote-work/1.0/userWorklog/regStartWork"));
 
   makeAction = async (key: IssueKey, action = 241) => {
+    const paths = await this.getPaths(key);
+    console.log(paths);
     const actionPath = this.findActionPath(
-      await this.getPaths(key),
-      key,
+      paths,
       action,
     );
     if (actionPath instanceof Error) {
@@ -355,15 +356,10 @@ export class BrowserClient {
 
   private findActionPath = (
     paths: string[],
-    issue: IssueKey,
     action: number,
   ): string | Error =>
-    paths
-      .find((p) =>
-        ((p.match(/action=(?<action>\d+)/) as any) || {})?.groups?.action ===
-          action
-      ) ||
-    new Error(`No action ${action} URL found on issue page ${issue}.`);
+    paths.find((p) => p.includes(`action=${action}&`)) ||
+    new Error(`No action ${action} URL found.`);
 
   private findDeletePath = (paths: string[], issue: IssueKey): string | Error =>
     paths
@@ -423,7 +419,6 @@ export class Repo {
       const cacheText = await readTextFile(this.path);
       return JSON.parse(cacheText);
     } catch (e) {
-      console.log(e);
       return this.newCache();
     }
   }
