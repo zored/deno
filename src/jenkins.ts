@@ -3,7 +3,9 @@ import { promptSecret } from "https://deno.land/x/prompts/mod.ts";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import { secrets } from "./rob-only-jenkins.ts";
 
-const { job, jobParams, host, login, cookiePath } = secrets;
+const { job, jobParams, host, login, cookiePath, buildId, nodeId1, nodeId2 } =
+  secrets;
+const build = { job, buildId };
 
 const main = async () => {
   switch (Deno.args[0]) {
@@ -11,13 +13,17 @@ const main = async () => {
       console.log(await api.buildWithParameters(job, jobParams));
       break;
     case "pipeline-nodes":
-      console.log(JSON.stringify(await api.pipelineNodes(job, 240)));
+      console.log(JSON.stringify(await api.pipelineNodes(build)));
       break;
     case "pipeline-node-steps":
-      console.log(JSON.stringify(await api.pipelineNodeSteps(job, 240, 39)));
+      console.log(
+        JSON.stringify(await api.pipelineNodeSteps({ build, nodeId: nodeId1 })),
+      );
       break;
     case "pipeline-node-log":
-      console.log(JSON.stringify(await api.pipelineNodeLog(job, 240, 35)));
+      console.log(
+        JSON.stringify(await api.pipelineNodeLog({ build, nodeId: nodeId2 })),
+      );
       break;
     case "pipeline":
       console.log(JSON.stringify(await api.pipelines(job)));

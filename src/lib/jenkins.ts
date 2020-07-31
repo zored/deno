@@ -13,47 +13,60 @@ interface BuildAddress {
   job: JobName;
   buildId: number;
 }
+
 interface NodeAddress {
   build: BuildAddress;
   nodeId: number;
 }
 
-const blue = "/blue/rest/organizations/jenkins";
+class PathRetriever {
+  lastBuild = (j: JobName) => `${this.job(j)}/lastBuild/api/json`;
+  builds = (j: JobName) => `${this.job(j)}/wfapi/runs`;
+  nodeDescribe = (n: NodeAddress) => `${this.node}/wfapi/describe`;
+  nodeLog = (n: NodeAddress) => `${this.node}/log`;
+  buildParams = (j: JobName) => `${this.job(j)}/buildWithParameters`;
+  private job = (j: JobName) => `/job/${j}`;
+  private node = (n: NodeAddress) =>
+    `${this.job(n.build.job)}/${n.build.job}/execution/node/${n.nodeId}`;
+}
+
+class BluePathRetriever {
+  nodes = (b: BuildAddress) => `${this.build(b)}/nodes`;
+  steps = (n: NodeAddress) => `${this.node(n)}/steps`;
+  private job = (j: JobName) =>
+    `/blue/rest/organizations/jenkins/pipelines/${j}`;
+  private build = (b: BuildAddress) => `${this.job(b.job)}/runs/${b.buildId}`;
+  private node = (n: NodeAddress) => `${this.build(n.build)}/nodes/${n.nodeId}`;
+}
+
 export class Api {
   public cookie: string | undefined = "";
+  private paths = new PathRetriever();
+  private bluePaths = new BluePathRetriever();
   private loggedIn = false;
 
   constructor(private info: ApiInfo) {
     this.cookie = info.cookie;
   }
 
-  lastBuild = async (job: JobName) =>
-    this.json(this.get(`/job/${job}/lastBuild/api/json`));
-
-  pipelines = async (job: JobName) =>
-    this.json(this.get(`/job/${job}/wfapi/runs`));
-  pipelineNode = async (job: JobName, jobId: number, nodeId: number) =>
-    this.json(
-      this.get(`/job/${job}/${jobId}/execution/node/${nodeId}/wfapi/describe`),
-    );
-  pipelineNodeLog = async (job: JobName, jobId: number, nodeId: number) =>
-    this.text(this.get(`/job/${job}/${jobId}/execution/node/${nodeId}/log`));
-  pipelineNodeSteps = async (job: JobName, jobId: number, nodeId: number) =>
-    this.json(
-      this.get(`${blue}/pipelines/${job}/runs/${jobId}/nodes/${nodeId}/steps/`),
-    );
-  pipelineNodes = async (job: JobName, jobId: number) =>
-    this.json(
-      this.get(`${blue}/pipelines/${job}/runs/${jobId}/nodes/?limit=10000`),
-    );
-
+  lastBuild = async (j: JobName) =>
+    this.json(this.get(this.paths.lastBuild(j)));
+  pipelines = async (j: JobName) => this.json(this.get(this.paths.builds(j)));
+  pipelineNode = async (n: NodeAddress) =>
+    this.json(this.get(this.paths.nodeDescribe(n)));
+  pipelineNodeLog = async (n: NodeAddress) =>
+    this.text(this.get(this.paths.nodeLog(n)));
+  pipelineNodeSteps = async (n: NodeAddress) =>
+    this.json(this.get(this.bluePaths.steps(n)));
+  pipelineNodes = async (b: BuildAddress) =>
+    this.json(this.get(this.bluePaths.nodes(b)));
   buildWithParameters = async (job: JobName, data: QueryObject) =>
-    this.text(this.postForm(`/job/${job}/buildWithParameters`, data));
+    this.text(
+      this.postForm(this.paths.buildParams(job), data),
+    );
 
   private text = async (response: Promise<Response>) => (await response).text();
-
   private json = async (response: Promise<Response>) => (await response).json();
-
   private postForm = async (path: string, data: QueryObject) =>
     this.fetch(
       path,
@@ -61,9 +74,7 @@ export class Api {
         method: "POST",
         body: parseQuery(data),
       },
-      {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      },
+      { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
     );
 
   private get = async (path: string) => this.fetch(path);
