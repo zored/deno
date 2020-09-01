@@ -98,8 +98,6 @@ export class Api {
       credential: "inline",
       ...request,
     };
-
-    console.log({ url, init });
     return fetch(url, init);
   };
 
