@@ -1,22 +1,18 @@
 // STD:
-export { parse, Args } from "https://deno.land/std@0.55.0/flags/mod.ts";
-export { delay } from "https://deno.land/std@0.55.0/async/mod.ts";
+export { parse, Args } from "https://deno.land/std@0.67.0/flags/mod.ts";
+export { delay } from "https://deno.land/std@0.67.0/async/mod.ts";
 export {
   basename,
   dirname,
   join,
-} from "https://deno.land/std@0.55.0/path/mod.ts";
-export { bold, red, green } from "https://deno.land/std@0.55.0/fmt/colors.ts";
+} from "https://deno.land/std@0.67.0/path/mod.ts";
+export { bold, red, green } from "https://deno.land/std@0.67.0/fmt/colors.ts";
 export {
   assertEquals,
-  assertStrContains,
-} from "https://deno.land/std@0.55.0/testing/asserts.ts";
+  assertStringContains as assertStrContains,
+} from "https://deno.land/std@0.67.0/testing/asserts.ts";
 
 export { exec, OutputMode } from "https://deno.land/x/exec@0.0.5/mod.ts";
-export {
-  Application,
-  Router,
-} from "https://deno.land/x/denotrain@v0.5.0/mod.ts";
 
 // Object:
 import camelCase from "https://deno.land/x/lodash@4.17.15-es/camelCase.js";
