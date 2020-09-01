@@ -41,6 +41,10 @@ class BluePathRetriever {
 
 export class Api {
   public cookie: string | undefined = "";
+  public crumb: string | undefined = "";
+
+  private static readonly crumbName = "Jenkins-Crumb";
+
   private paths = new PathRetriever();
   private bluePaths = new BluePathRetriever();
   private loggedIn = false;
@@ -94,15 +98,26 @@ export class Api {
       credential: "inline",
       ...request,
     };
+
+    console.log({ url, init });
     return fetch(url, init);
   };
 
-  private getAuthHeaders = (): HeadersInit => {
+  private getAuthHeaders = (): Record<string, string> => {
+    const crumb: Record<string, string> = this.crumb
+      ? {
+        [Api.crumbName]: this.crumb,
+      }
+      : {};
     const Cookie = this.cookie;
     if (Cookie && Cookie.length) {
-      return { Cookie };
+      return {
+        ...crumb,
+        Cookie,
+      };
     }
     const { login, password } = this.info;
+
     return {
       Authorization: "Basic " + btoa(`${login}:${password}`),
     };
@@ -114,11 +129,14 @@ export class Api {
     }
     this.loggedIn = true;
 
-    const response = await this.get("/api/json?tree=jobs");
-    const { jobs } = await response.json();
-    if (!Array.isArray(jobs) || jobs.length === 0) {
+    const response = await this.get(
+      `/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,%22:%22,//crumb)`,
+    );
+    const [crumbName, crumb] = (await response.text()).split(":");
+    if (crumbName !== Api.crumbName || !crumb) {
       throw new Error(`Could not login`);
     }
+    this.crumb = crumb;
     this.cookie = response.headers.get("set-cookie") || "";
   };
 }

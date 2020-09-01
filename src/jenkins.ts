@@ -1,7 +1,10 @@
 import { Api, ApiInfo } from "./lib/jenkins.ts";
-import { promptSecret } from "https://deno.land/x/prompts/mod.ts";
+// import { promptSecret } from "https://deno.land/x/prompts/mod.ts";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import { secrets } from "./rob-only-jenkins.ts";
+
+const promptSecret = (message: string) =>
+  new Promise<string>((r) => r(secrets.password));
 
 const { job, jobParams, host, login, cookiePath, buildId, nodeId1, nodeId2 } =
   secrets;
