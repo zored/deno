@@ -2,7 +2,7 @@
 [![ci](https://github.com/zored/deno/workflows/ci/badge.svg?branch=master)](https://github.com/zored/deno/actions)
 
 ## Project is discontinued
-- There were braking changes in `Deno.stdout.write` in Deno `1.*`. I got chunked output in important scripts.
+- There were breaking changes in `Deno.stdout.write` in Deno `1.*`. I got chunked output in important scripts.
 - I got compatibility issues of Deno `1.2.*` and `std@0.*` because of `Implicitly using latest version (0.67.0) for https://deno.land/std/uuid/mod.ts`.
 
 Here are my [Deno](https://deno.land/) scripts:
