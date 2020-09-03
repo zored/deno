@@ -1,5 +1,6 @@
 # deno
 [![ci](https://github.com/zored/deno/workflows/ci/badge.svg?branch=master)](https://github.com/zored/deno/actions)
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/zored/deno)
 
 ## Caution
 There are issues with Deno. Use carefully!
