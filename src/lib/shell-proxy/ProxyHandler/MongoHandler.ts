@@ -1,6 +1,6 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
-import { ProxyConfig } from "../ProxyConfigs.ts";
-import { ShCommands } from "../ProxyRunner.ts";
+import type { ProxyConfig } from "../ProxyConfigs.ts";
+import type { ShCommands } from "../ProxyRunner.ts";
 
 export interface MongoConfig extends ProxyConfig {
   type: "mongo";

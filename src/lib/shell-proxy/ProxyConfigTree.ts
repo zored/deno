@@ -1,4 +1,4 @@
-import { ProxyConfig, ProxyConfigs } from "./ProxyConfigs.ts";
+import type { ProxyConfig, ProxyConfigs } from "./ProxyConfigs.ts";
 
 export interface IConfig {
   path: string;

@@ -1,6 +1,6 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
-import { ProxyConfig } from "../ProxyConfigs.ts";
-import { ExecSubCommand, Params } from "../ProxyRunner.ts";
+import type { ProxyConfig } from "../ProxyConfigs.ts";
+import type { ExecSubCommand, Params } from "../ProxyRunner.ts";
 
 type IK8SParams =
   | {

@@ -1,12 +1,12 @@
 import { green, parse } from "../../../deps.ts";
 import { sh, shOut } from "../command.ts";
-import { ProxyHandler } from "./ProxyHandler.ts";
+import type { ProxyHandler } from "./ProxyHandler.ts";
 import { SSHHandler } from "./ProxyHandler/SSHHandler.ts";
 import { DockerHandler } from "./ProxyHandler/DockerHandler.ts";
 import { MongoHandler } from "./ProxyHandler/MongoHandler.ts";
 import { ScreenHandler } from "./ProxyHandler/ScreenHandler.ts";
 import { K8SHandler } from "./ProxyHandler/K8SHandler.ts";
-import { ProxyConfig, ProxyConfigs } from "./ProxyConfigs.ts";
+import type { ProxyConfig, ProxyConfigs } from "./ProxyConfigs.ts";
 import { ProxyConfigTree } from "./ProxyConfigTree.ts";
 import { CommandBuilder } from "./CommandBuilder.ts";
 

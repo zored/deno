@@ -1,5 +1,6 @@
 // STD:
-export { parse, Args } from "https://deno.land/std@0.67.0/flags/mod.ts";
+export { parse } from "https://deno.land/std@0.67.0/flags/mod.ts";
+export type { Args } from "https://deno.land/std@0.67.0/flags/mod.ts";
 export { delay } from "https://deno.land/std@0.67.0/async/mod.ts";
 export {
   basename,

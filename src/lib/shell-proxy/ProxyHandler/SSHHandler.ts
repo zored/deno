@@ -1,6 +1,6 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
-import { ProxyConfig } from "../ProxyConfigs.ts";
-import { ExecSubCommand, Params, ShCommands } from "../ProxyRunner.ts";
+import type { ProxyConfig } from "../ProxyConfigs.ts";
+import type { ExecSubCommand, Params, ShCommands } from "../ProxyRunner.ts";
 
 type HostGuest = [string, string];
 

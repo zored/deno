@@ -1,4 +1,4 @@
-import { ShCommands } from "./ProxyRunner.ts";
+import type { ShCommands } from "./ProxyRunner.ts";
 
 export class CommandBuilder {
   constructor(private readonly commands: ShCommands[] = []) {
