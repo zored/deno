@@ -1,4 +1,4 @@
-import { Args } from "../../deps.ts";
+import type { Args } from "../../deps.ts";
 import { GitClient } from "./git.ts";
 
 const { writeTextFileSync, chmodSync } = Deno;
