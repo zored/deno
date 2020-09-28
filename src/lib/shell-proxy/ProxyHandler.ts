@@ -1,5 +1,5 @@
-import { ExecSubCommand, Params, ShCommands } from "./ProxyRunner.ts";
-import { ProxyConfig } from "./ProxyConfigs.ts";
+import type { ExecSubCommand, Params, ShCommands } from "./ProxyRunner.ts";
+import type { ProxyConfig } from "./ProxyConfigs.ts";
 
 /**
  * Handles specific shell-proxy config node and retrieves commands depending on context.

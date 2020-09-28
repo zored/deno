@@ -1,4 +1,4 @@
-import { Commands, ICommandsConfig } from "./command.ts";
+import type { Commands, ICommandsConfig } from "./command.ts";
 
 const defaultGenerateName = "completion";
 const defaultCompleteName = "completionComplete";
