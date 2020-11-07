@@ -1,10 +1,10 @@
 #!/usr/bin/env deno run --allow-run --allow-write --allow-read
 import {
   Commands,
-  print,
   GitClient,
   GitPaths,
   MessageBuilderRepo,
+  print,
 } from "../mod.ts";
 
 const git = new GitClient();

@@ -1,4 +1,4 @@
-import { DepFactory, Dep } from "./dep-check.ts";
+import { Dep, DepFactory } from "./dep-check.ts";
 import { assertEquals } from "../../deps.ts";
 const { test } = Deno;
 

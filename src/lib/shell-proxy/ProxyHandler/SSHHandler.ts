@@ -8,6 +8,10 @@ export interface SSHConfig extends ProxyConfig {
   type: "ssh";
   sshAlias: string;
   volumesHostGuest?: Record<string, string>;
+  command?: {
+    before?: string;
+    after?: string;
+  };
 }
 
 export class SSHHandler extends ProxyHandler<SSHConfig> {
@@ -27,6 +31,13 @@ export class SSHHandler extends ProxyHandler<SSHConfig> {
     switch (cs[0]) {
       case "mount":
         return this.mount(c, exec);
+    }
+
+    if (c.command?.before) {
+      cs[0] = `${c.command?.before} && ${cs[0]}`;
+    }
+    if (c.command?.after) {
+      cs[0] = `${cs[0]} && ${c.command?.after}`;
     }
 
     if (cs.length === 1) {

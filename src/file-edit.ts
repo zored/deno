@@ -1,11 +1,11 @@
 #!/usr/bin/env deno run --allow-read --allow-write
 import {
-  camelCase,
-  snakeCase,
-  upperFirst,
   basename,
+  camelCase,
   dirname,
   join,
+  snakeCase,
+  upperFirst,
 } from "../deps.ts";
 import { Commands } from "./lib/command.ts";
 

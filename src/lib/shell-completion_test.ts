@@ -1,13 +1,10 @@
 const { test } = Deno;
+import { assertEquals, assertStrContains } from "../../deps.ts";
 import {
-  assertEquals,
-  assertStrContains,
-} from "../../deps.ts";
-import {
-  Generator,
-  Completor,
-  WordRetriever,
   CommandFactory,
+  Completor,
+  Generator,
+  WordRetriever,
 } from "./shell-completion.ts";
 import { Commands } from "./command.ts";
 test("generator", () => {
