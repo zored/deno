@@ -1,4 +1,4 @@
-import { Args, parse, green, red, delay } from "../../deps.ts";
+import { Args, delay, green, parse, red } from "../../deps.ts";
 import { parseDuration } from "./duration.ts";
 
 const { args, exit } = Deno;

@@ -1,6 +1,6 @@
 const { test } = Deno;
 import { assertEquals } from "../../deps.ts";
-import { GitPaths, Dirs } from "./git-paths.ts";
+import { Dirs, GitPaths } from "./git-paths.ts";
 
 test("path by url", () => {
   const httpsUrl = "https://github.com/zored/deno/inner";
