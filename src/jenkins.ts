@@ -13,7 +13,8 @@ const build = { job, buildId };
 const main = async () => {
   switch (Deno.args[0]) {
     case "build":
-      console.log(await api.buildWithParameters(job, jobParams));
+      const queueItemId = await api.buildWithParameters(job, jobParams);
+      console.log(await api.getQueueItem(queueItemId));
       break;
     case "pipeline-nodes":
       console.log(JSON.stringify(await api.pipelineNodes(build)));
@@ -25,7 +26,10 @@ const main = async () => {
       break;
     case "pipeline-node-log":
       console.log(
-        JSON.stringify(await api.pipelineNodeLog({ build, nodeId: nodeId2 })),
+        await api.pipelineNodeLog({
+          build,
+          nodeId: nodeId1,
+        }),
       );
       break;
     case "pipeline":
@@ -33,7 +37,12 @@ const main = async () => {
       break;
     default:
     case "info":
-      console.log(JSON.stringify(await api.lastBuild(job)));
+      const number = parseInt(Deno.args[1]);
+      console.log(
+        JSON.stringify(
+          await (number ? api.getBuild(job, number) : api.lastBuild(job)),
+        ),
+      );
       break;
   }
 };

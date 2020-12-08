@@ -19,24 +19,50 @@ interface NodeAddress {
   nodeId: number;
 }
 
+interface StepAddress {
+  node: NodeAddress;
+  stepId: number;
+}
+
+type QueueItemId = number;
+
 class PathRetriever {
   lastBuild = (j: JobName) => `${this.job(j)}/lastBuild/api/json`;
+  getBuildJson = (j: JobName, b: BuildNumber) => `${this.job(j)}/${b}/api/json`;
   builds = (j: JobName) => `${this.job(j)}/wfapi/runs`;
-  nodeDescribe = (n: NodeAddress) => `${this.node}/wfapi/describe`;
-  nodeLog = (n: NodeAddress) => `${this.node}/log`;
+  nodeDescribe = (n: NodeAddress) => `${this.node(n)}/wfapi/describe`;
   buildParams = (j: JobName) => `${this.job(j)}/buildWithParameters`;
   private job = (j: JobName) => `/job/${j}`;
   private node = (n: NodeAddress) =>
     `${this.job(n.build.job)}/${n.build.job}/execution/node/${n.nodeId}`;
+
+  parseQueueItemId(queueItemUrl: string): QueueItemId {
+    const matches = queueItemUrl.match(/\/queue\/item\/(\d+)/);
+    if (!matches) {
+      return 0;
+    }
+    return parseInt(matches[1]);
+  }
+  queueItem = (id: QueueItemId) => `/queue/item/${id}/api/json`;
 }
 
 class BluePathRetriever {
   nodes = (b: BuildAddress) => `${this.build(b)}/nodes`;
   steps = (n: NodeAddress) => `${this.node(n)}/steps`;
+  stepLog = (s: StepAddress) => `${this.node(s.node)}/steps/${s.stepId}/log/`;
+  nodeLog = (a: NodeAddress) => `${this.node(a)}/log/`;
   private job = (j: JobName) =>
     `/blue/rest/organizations/jenkins/pipelines/${j}`;
   private build = (b: BuildAddress) => `${this.job(b.job)}/runs/${b.buildId}`;
   private node = (n: NodeAddress) => `${this.build(n.build)}/nodes/${n.nodeId}`;
+}
+
+type BuildNumber = number;
+
+interface QueueItem {
+  executable: {
+    number: BuildNumber;
+  };
 }
 
 export class Api {
@@ -55,18 +81,24 @@ export class Api {
 
   lastBuild = async (j: JobName) =>
     this.json(this.get(this.paths.lastBuild(j)));
+  getBuild = async (j: JobName, b: BuildNumber) =>
+    this.json(this.get(this.paths.getBuildJson(j, b)));
   pipelines = async (j: JobName) => this.json(this.get(this.paths.builds(j)));
   pipelineNode = async (n: NodeAddress) =>
     this.json(this.get(this.paths.nodeDescribe(n)));
-  pipelineNodeLog = async (n: NodeAddress) =>
-    this.text(this.get(this.paths.nodeLog(n)));
+  pipelineNodeLog = async (a: NodeAddress) =>
+    this.text(this.get(this.bluePaths.nodeLog(a)));
   pipelineNodeSteps = async (n: NodeAddress) =>
     this.json(this.get(this.bluePaths.steps(n)));
   pipelineNodes = async (b: BuildAddress) =>
     this.json(this.get(this.bluePaths.nodes(b)));
+  getQueueItem = async (id: QueueItemId): Promise<QueueItem> =>
+    this.json(this.get(this.paths.queueItem(id)));
   buildWithParameters = async (job: JobName, data: QueryObject) =>
-    this.text(
-      this.postForm(this.paths.buildParams(job), data),
+    this.paths.parseQueueItemId(
+      (await this.postForm(this.paths.buildParams(job), data))
+        .headers
+        .get("Location") || "",
     );
 
   private text = async (response: Promise<Response>) => (await response).text();

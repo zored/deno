@@ -40,6 +40,7 @@ export class Runner {
     options: Partial<Deno.RunOptions> = {},
   ): Promise<void> => {
     options.stdin = "inherit";
+    options.stderr = "inherit";
     await this.assertStatus(await this.getProcess(options, command), command);
   };
 
@@ -52,16 +53,23 @@ export class Runner {
     options.stdin = "inherit";
 
     const process = this.getProcess(options, command);
-    const output = await process.output();
-    await this.assertStatus(process, command);
-    return new TextDecoder().decode(output);
+    const output = new TextDecoder().decode(await process.output());
+    await this.assertStatus(process, command, output);
+    return output;
   };
 
-  private assertStatus = async (process: Deno.Process, command: ShCommand) => {
+  private assertStatus = async (
+    process: Deno.Process,
+    command: ShCommand,
+    output = "",
+  ) => {
     const { code } = await process.status();
     if (code !== 0) {
+      const commandString = Array.isArray(command)
+        ? command.join(" ")
+        : command;
       throw new Error(
-        `Command ${JSON.stringify(command)} exited with code ${code}.`,
+        `Command:\n${commandString}\nexited with code ${code}\n${output}`,
       );
     }
   };
