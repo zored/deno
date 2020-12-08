@@ -1,4 +1,4 @@
-import { Api, ApiInfo } from "./lib/jenkins.ts";
+import { JenkinsApi, JenkinsApiInfo } from "./lib/jenkins.ts";
 // import { promptSecret } from "https://deno.land/x/prompts/mod.ts";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import { secrets } from "./rob-only-jenkins.ts";
@@ -46,7 +46,7 @@ const main = async () => {
       break;
   }
 };
-const getInfo = async (): Promise<ApiInfo> => {
+const getInfo = async (): Promise<JenkinsApiInfo> => {
   const cookie = cookieFile();
   const password = cookie.length
     ? ""
@@ -68,6 +68,6 @@ const cookieFile = (cookie?: string): string => {
   return cookie;
 };
 
-const api = new Api(await getInfo());
+const api = new JenkinsApi(await getInfo());
 await main();
 cookieFile(api.cookie);

@@ -1,13 +1,13 @@
 import { parseQuery, QueryObject } from "./url.ts";
 
-export interface ApiInfo {
+export interface JenkinsApiInfo {
   host: string;
   login: string;
   password: string;
   cookie?: string;
 }
 
-export type JobName = string;
+type JobName = string;
 
 interface BuildAddress {
   job: JobName;
@@ -26,7 +26,7 @@ interface StepAddress {
 
 type QueueItemId = number;
 
-class PathRetriever {
+export class PathRetriever {
   lastBuild = (j: JobName) => `${this.job(j)}/lastBuild/api/json`;
   getBuildJson = (j: JobName, b: BuildNumber) => `${this.job(j)}/${b}/api/json`;
   builds = (j: JobName) => `${this.job(j)}/wfapi/runs`;
@@ -35,7 +35,6 @@ class PathRetriever {
   private job = (j: JobName) => `/job/${j}`;
   private node = (n: NodeAddress) =>
     `${this.job(n.build.job)}/${n.build.job}/execution/node/${n.nodeId}`;
-
   parseQueueItemId(queueItemUrl: string): QueueItemId {
     const matches = queueItemUrl.match(/\/queue\/item\/(\d+)/);
     if (!matches) {
@@ -43,14 +42,24 @@ class PathRetriever {
     }
     return parseInt(matches[1]);
   }
+  parseBuild(queueItemUrl: string): BuildAddress | null {
+    const matches = queueItemUrl.match(
+      /\/jenkins\/pipelines\/(.+?)\/runs\/(\d+)/,
+    );
+    if (!matches) {
+      return null;
+    }
+    const buildId = parseInt(matches[2]);
+    const job = matches[1];
+    return { buildId, job };
+  }
   queueItem = (id: QueueItemId) => `/queue/item/${id}/api/json`;
 }
 
 class BluePathRetriever {
   nodes = (b: BuildAddress) => `${this.build(b)}/nodes`;
   steps = (n: NodeAddress) => `${this.node(n)}/steps`;
-  stepLog = (s: StepAddress) => `${this.node(s.node)}/steps/${s.stepId}/log/`;
-  nodeLog = (a: NodeAddress) => `${this.node(a)}/log/`;
+  nodeLog = (a: NodeAddress) => `${this.node(a)}/log`;
   private job = (j: JobName) =>
     `/blue/rest/organizations/jenkins/pipelines/${j}`;
   private build = (b: BuildAddress) => `${this.job(b.job)}/runs/${b.buildId}`;
@@ -65,7 +74,7 @@ interface QueueItem {
   };
 }
 
-export class Api {
+export class JenkinsApi {
   public cookie: string | undefined = "";
   public crumb: string | undefined = "";
 
@@ -75,7 +84,7 @@ export class Api {
   private bluePaths = new BluePathRetriever();
   private loggedIn = false;
 
-  constructor(private info: ApiInfo) {
+  constructor(private info: JenkinsApiInfo) {
     this.cookie = info.cookie;
   }
 
@@ -136,7 +145,7 @@ export class Api {
   private getAuthHeaders = (): Record<string, string> => {
     const crumb: Record<string, string> = this.crumb
       ? {
-        [Api.crumbName]: this.crumb,
+        [JenkinsApi.crumbName]: this.crumb,
       }
       : {};
     const Cookie = this.cookie;
@@ -163,7 +172,7 @@ export class Api {
       `/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,%22:%22,//crumb)`,
     );
     const [crumbName, crumb] = (await response.text()).split(":");
-    if (crumbName !== Api.crumbName || !crumb) {
+    if (crumbName !== JenkinsApi.crumbName || !crumb) {
       throw new Error(`Could not login`);
     }
     this.crumb = crumb;
