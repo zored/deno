@@ -1,8 +1,11 @@
-export interface Dirs extends Record<string, Dirs | null> {}
+export interface Dirs extends Record<string, Dirs | null> {
+}
 
 const { readDirSync } = Deno;
+
 interface IFileSystem {
-  getDirs(root: string): Dirs;
+  getDirs(root: string, maxDepth: number): Dirs;
+
   // isGit(dir: string): boolean;
 }
 
@@ -14,12 +17,14 @@ interface DirInfo {
   name: Name;
 }
 
+const maxDepth = 4;
+
 type Path = string;
 
 class FileSystem implements IFileSystem {
   private cache: Record<Path, DirInfo[]> = {};
 
-  getDirs = (root: string): Dirs =>
+  getDirs = (root: string, maxDepth: number): Dirs =>
     this.read(root)
       .reduce((dirs, { name, dir, symlink }) => {
         if (!dir) {
@@ -27,7 +32,8 @@ class FileSystem implements IFileSystem {
         }
 
         const path = `${root}/${name}`;
-        dirs[name] = this.isGit(path) ? null : this.getDirs(path);
+
+        dirs[name] = this.isGit(path) ? null : this.getDirs(path, maxDepth);
         return dirs;
       }, {} as Dirs);
 
@@ -50,6 +56,7 @@ const log = <T>(a: T): T => {
 
 export class GitPaths {
   private readonly matcher = new Matcher();
+
   constructor(
     private readonly root: string,
     private readonly fs: IFileSystem = new FileSystem(),
@@ -82,10 +89,14 @@ export class GitPaths {
 
   getOptions = (query: string) =>
     DirsMethods.getLeafs(
-      this.fs.getDirs(this.root),
+      this.fs.getDirs(this.root, maxDepth),
       this.root,
-      (name: Name) => name.toLowerCase().indexOf(query.toLowerCase()) === 0,
+      (name: Name) => name.toLowerCase().indexOf(query.toLowerCase()) > -1,
     );
+
+  private throwNoQuery() {
+    throw new Error("specify git paths query");
+  }
 }
 
 class DirsMethods {

@@ -10,6 +10,7 @@ import {
 const git = new GitClient();
 
 const messageBuilders = new MessageBuilderRepo();
+const defaultRoot = "/Users/r.akhmerov/git";
 
 new Commands({
   recent: async ({ _: [i] }) => {
@@ -19,8 +20,8 @@ new Commands({
       : refs[parseInt(i + "")]);
     await print(output);
   },
-  root: ({ _: [query], root = "/Users/r.akhmerov/git", prefix = "v" }) =>
-    new GitPaths(root).getOptions(query + ""),
+  root: ({ _: [query], root = defaultRoot, prefix = "v" }) =>
+    console.log(new GitPaths(root).getOptions((query || "") + "").join("\n")),
   incVer: async ({ type = "patch", prefix = "v" }) => {
     const version = await git.lastVersion();
     version.inc(type);
