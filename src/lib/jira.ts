@@ -80,7 +80,7 @@ export class IssuesCacher {
     const issues = await this.getAllIssues();
     const issue = issues.find((i) => i.key === key);
     if (!issue) {
-      throw new Error(`No issue "${key}" found in cache.`);
+      return "";
     }
     return issue[field as keyof ITableIssue] as string;
   }
