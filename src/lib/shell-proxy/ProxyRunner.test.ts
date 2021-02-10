@@ -32,6 +32,11 @@ test("test eval", async () => {
             flags: { "custom": "flag" } as Flags,
             children: [
               {
+                globalAlias: "pg",
+                type: "postgres",
+                uri: "postgresql://localhost:5432/public",
+              },
+              {
                 type: "mongo",
                 slave: true,
                 uri: "mongo://example",
@@ -60,10 +65,13 @@ test("test eval", async () => {
       expected.join(" "),
     );
 
+  const docker = "sudo docker run -it --net=host --rm some:1.2.3 --custom flag";
+  const ssh = "ssh -t kek";
+
   await assertCommands(
     [
-      "ssh -t kek",
-      "sudo docker run -it --net=host --rm some:1.2.3 --custom flag",
+      ssh,
+      docker,
       "'mongo' 'mongo://example' '--quiet' '--eval' 'rs.slaveOk(); db.people .find()'",
     ],
     runner.run(
@@ -78,8 +86,8 @@ test("test eval", async () => {
 
   await assertCommands(
     [
-      "ssh -t kek",
-      "sudo docker run -it --net=host --rm some:1.2.3 --custom flag",
+      ssh,
+      docker,
       "hi '--some' 'value'",
     ],
     runner.run(
@@ -88,6 +96,22 @@ test("test eval", async () => {
       false,
       false,
       { "value": "custom.sh" },
+      true,
+    ),
+  );
+
+  await assertCommands(
+    [
+      ssh,
+      docker,
+      `'psql' 'postgresql://localhost:5432/public' '--quiet' '--command' 'select 'hi' from \"table\" where id = 1;'`,
+    ],
+    runner.run(
+      "pg",
+      [`select 'hi' from "table" where id = 1;`],
+      true,
+      false,
+      {},
       true,
     ),
   );

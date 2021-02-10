@@ -9,6 +9,7 @@ import { K8SHandler } from "./ProxyHandler/K8SHandler.ts";
 import type { ProxyConfig, ProxyConfigs } from "./ProxyConfigs.ts";
 import { ProxyConfigTree } from "./ProxyConfigTree.ts";
 import { CommandBuilder } from "./CommandBuilder.ts";
+import { PostgresHandler } from "./ProxyHandler/PostgresHandler.ts";
 
 export type Params = Record<string, any>;
 export type ShCommands = string[];
@@ -22,6 +23,7 @@ export class ProxyRunner {
     new SSHHandler(),
     new DockerHandler(),
     new MongoHandler(),
+    new PostgresHandler(),
     new ScreenHandler(),
     new K8SHandler(),
   ];
