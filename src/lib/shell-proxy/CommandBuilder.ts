@@ -17,7 +17,7 @@ export class CommandBuilder {
   toArray = () => this.commands.flat();
 
   with = (cs: ShCommands) =>
-    new CommandBuilder(this.commands.slice().concat(cs));
+    new CommandBuilder(this.commands.slice().concat([cs]));
 
   private escapeCommand = (c: string) => /[\s]/.test(c) ? `'${c}'` : c;
 }

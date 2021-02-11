@@ -56,7 +56,9 @@ export class SSHHandler extends ProxyHandler<SSHConfig> {
     c: SSHConfig,
     params: Params,
     exec: ExecSubCommand,
-  ) => exec(await this.mount(c, exec));
+  ) => {
+    await exec(await this.mount(c, exec));
+  };
 
   private hostGuests = (c: SSHConfig) =>
     Object.entries(c.volumesHostGuest || {});

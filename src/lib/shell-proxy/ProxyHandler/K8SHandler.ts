@@ -2,16 +2,23 @@ import { ProxyHandler } from "../ProxyHandler.ts";
 import type { ProxyConfig } from "../ProxyConfigs.ts";
 import type { ExecSubCommand, Params } from "../ProxyRunner.ts";
 
-type IK8SParams =
-  | {
-    find?: string;
-  }
-  | "list"
-  | undefined;
+export type IK8SParams = {
+  finds?: string[];
+  names?: 1;
+} | undefined;
 
 export interface IK8SProxy extends ProxyConfig {
   type: "k8s";
   pod: string;
+}
+
+export interface Pod {
+  status: {
+    phase: "Running" | string;
+  };
+  metadata: {
+    name: string;
+  };
 }
 export class K8SHandler extends ProxyHandler<IK8SProxy> {
   private mode: "pod" | "logs" | "get" = "pod";
@@ -26,51 +33,47 @@ export class K8SHandler extends ProxyHandler<IK8SProxy> {
     c: IK8SProxy,
     params: Params,
     exec: ExecSubCommand,
-  ): Promise<any> => {
+  ): Promise<boolean | void> => {
     if (c.pod) {
       return;
     }
-    const p: IK8SParams | undefined = params[c.type];
+    const p = params as IK8SParams;
     if (p) {
-      const getPods = async (): Promise<any[]> => {
+      const getPods = async (): Promise<Pod[]> => {
         const output = await exec(["kubectl", "get", "pods", "-o", "json"]);
         return JSON.parse(output).items;
       };
-      const getName = (pod: any) => pod.metadata.name;
+      const getName = (pod: Pod) => pod.metadata.name;
 
-      switch (p) {
-        case "list":
-          const pods = await getPods();
-          console.log(pods.map(getName));
-          Deno.exit(0);
-          break;
-        case undefined:
-          break;
-        default:
-          const { find } = p;
-          if (find) {
-            const pods = await getPods();
-            const foundPods = pods.filter((p) =>
-              getName(p).indexOf(find) === 0
+      if (p.names) {
+        console.log((await getPods()).map(getName).join("\n"));
+        return true;
+      } else if (p.finds) {
+        const { finds } = p;
+        const runningPods = (await getPods()).filter((p) =>
+          p.status.phase === "Running"
+        );
+        const foundPods = runningPods.filter((p) =>
+          !finds.some((find) => getName(p).indexOf(find) === -1)
+        );
+        switch (foundPods.length) {
+          case 0:
+            throw new Error(`No pods found by ${finds}.`);
+          case 1:
+            c.pod = getName(foundPods[0]);
+            break;
+          default:
+            throw new Error(
+              `Many pods found by ${finds}:\n${
+                foundPods.map(getName).join("\n")
+              }`,
             );
-            switch (foundPods.length) {
-              case 0:
-                throw new Error(`No pods found by ${find}.`);
-              case 1:
-                c.pod = getName(foundPods[0]);
-                break;
-              case 2:
-                throw new Error(
-                  `Many pods found by ${find}: ${pods.map(getName).join("")}`,
-                );
-            }
-          }
-          break;
+        }
       }
-    }
 
-    if (!c.pod) {
-      throw new Error("No pod criteria set up for K8S.");
+      if (!c.pod) {
+        throw new Error("No pod criteria set up for K8S.");
+      }
     }
   };
 }
