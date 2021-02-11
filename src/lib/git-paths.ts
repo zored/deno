@@ -93,10 +93,6 @@ export class GitPaths {
       this.root,
       (name: Name) => name.toLowerCase().indexOf(query.toLowerCase()) > -1,
     );
-
-  private throwNoQuery() {
-    throw new Error("specify git paths query");
-  }
 }
 
 class DirsMethods {

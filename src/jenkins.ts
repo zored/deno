@@ -1,5 +1,4 @@
 import { JenkinsApi, JenkinsApiInfo } from "./lib/jenkins.ts";
-// import { promptSecret } from "https://deno.land/x/prompts/mod.ts";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import { secrets } from "./rob-only-jenkins.ts";
 
