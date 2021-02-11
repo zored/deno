@@ -1,5 +1,5 @@
 import { green, parse } from "../../../deps.ts";
-import { sh, shOut } from "../command.ts";
+import { IRunner, Runner, sh, shOut } from "../command.ts";
 import type { ProxyHandler } from "./ProxyHandler.ts";
 import { SSHHandler } from "./ProxyHandler/SSHHandler.ts";
 import { DockerHandler } from "./ProxyHandler/DockerHandler.ts";
@@ -33,6 +33,7 @@ export class ProxyRunner {
     private readonly debug = false,
     private readonly retrieveOutput = false,
     handlers: ProxyHandler<any>[] = [],
+    private shRunner: IRunner = new Runner(),
   ) {
     this.configs = new ProxyConfigTree(configs);
     handlers.forEach((h) => this.handlers.push(h));
@@ -89,14 +90,16 @@ export class ProxyRunner {
     for (let i in configs) {
       const config = configs[i];
       const isLast = parseInt(i) === configs.length - 1;
-      commands.add(
-        await this.createProxyCommands(
-          config,
-          params,
-          exec,
-          isLast,
-        ),
+      const proxyCommands = await this.createProxyCommands(
+        config,
+        params,
+        exec,
+        isLast,
       );
+      if (proxyCommands === null) {
+        return undefined;
+      }
+      commands.add(proxyCommands);
     }
 
     commands.add(
@@ -131,7 +134,7 @@ export class ProxyRunner {
 
   private exec = async (cs: CommandBuilder) => {
     this.log(cs);
-    return await shOut(cs.toArray());
+    return await this.shRunner.output(cs.toArray());
   };
 
   private tty = async (cs: CommandBuilder) => {
@@ -155,13 +158,16 @@ export class ProxyRunner {
     params: Params,
     exec: ExecSubCommand,
     isLast: boolean,
-  ): Promise<ShCommands> => {
+  ): Promise<ShCommands | null> => {
     const handler = this.getHandler(config);
-    await handler.handleParams(
+    const done = await handler.handleParams(
       config,
       params,
       exec,
     );
+    if (done) {
+      return null;
+    }
     return handler.getChainBase(config, isLast);
   };
 

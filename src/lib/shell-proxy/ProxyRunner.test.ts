@@ -1,10 +1,13 @@
 import { ProxyRunner, RunResult, ShCommands } from "./ProxyRunner.ts";
 import { assertEquals } from "../../../deps.ts";
+import { stub } from "../../../deps.dev.ts";
 import { MongoConfig } from "./ProxyHandler/MongoHandler.ts";
 import { DockerConfig } from "./ProxyHandler/DockerHandler.ts";
 import { Flags, ProxyConfig } from "./ProxyConfigs.ts";
 import { ProxyHandler } from "./ProxyHandler.ts";
 import { SSHConfig } from "./ProxyHandler/SSHHandler.ts";
+import { Runner } from "../command.ts";
+import { IK8SParams, Pod } from "./ProxyHandler/K8SHandler.ts";
 
 const { test } = Deno;
 
@@ -19,8 +22,12 @@ class CustomHandler extends ProxyHandler<CustomConfig> {
 }
 
 test("test eval", async () => {
+  const shRunner = new Runner();
   const runner = new ProxyRunner(
     [
+      {
+        type: "k8s",
+      },
       {
         type: "ssh",
         pathAlias: "dev",
@@ -54,6 +61,7 @@ test("test eval", async () => {
     false,
     false,
     [new CustomHandler()],
+    shRunner,
   );
 
   const assertCommands = async (
@@ -112,6 +120,36 @@ test("test eval", async () => {
       true,
       false,
       {},
+      true,
+    ),
+  );
+
+  stub(
+    shRunner,
+    "output",
+    () => {
+      const pod: Pod = {
+        metadata: {
+          name: "postgres-1",
+        },
+        status: {
+          phase: "Running",
+        },
+      };
+      return new Promise((r) => r([JSON.stringify({ items: [pod] })]));
+    },
+  );
+  const k8sFinds: IK8SParams = {
+    finds: ["post", "gres"],
+  };
+  await assertCommands(
+    [`kubectl exec -it postgres-1 pwd`],
+    runner.run(
+      "/k8s",
+      ["pwd"],
+      true,
+      false,
+      k8sFinds,
       true,
     ),
   );

@@ -29,7 +29,7 @@ export abstract class ProxyHandler<Config extends ProxyConfig> {
     c: Config,
     params: Params,
     exec: ExecSubCommand,
-  ): Promise<any> => {};
+  ): Promise<boolean | void> => {};
 
   protected getFlags = (config: ProxyConfig): ShCommands =>
     Object.entries(config.flags || {}).reduce(

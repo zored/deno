@@ -10,6 +10,17 @@ type CommandAsync = (tailArgs: Args) => Promise<any>;
 export interface CommandMap extends Record<string, Command> {
 }
 
+export interface IRunner {
+  output(
+    command: ShCommand,
+    options?: Partial<Deno.RunOptions>,
+  ): Promise<string>;
+  run(
+    command: ShCommand,
+    options?: Partial<Deno.RunOptions>,
+  ): Promise<void>;
+}
+
 export type Command = CommandSync | CommandAsync | CommandMap;
 
 export const runCommands = (m: CommandMap) => new Commands(m).runAndExit();
@@ -34,7 +45,7 @@ export class ProcessWrapper {
       await this.process.status();
 }
 
-export class Runner {
+export class Runner implements IRunner {
   run = async (
     command: ShCommand,
     options: Partial<Deno.RunOptions> = {},
