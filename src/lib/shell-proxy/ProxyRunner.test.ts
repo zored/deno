@@ -8,6 +8,7 @@ import { ProxyHandler } from "./ProxyHandler.ts";
 import { SSHConfig } from "./ProxyHandler/SSHHandler.ts";
 import { Runner } from "../command.ts";
 import { IK8SParams, Pod } from "./ProxyHandler/K8SHandler.ts";
+import { PostgresParams } from "./ProxyHandler/PostgresHandler.ts";
 
 const { test } = Deno;
 
@@ -108,18 +109,36 @@ test("test eval", async () => {
     ),
   );
 
+  const pgParams: PostgresParams = {
+    schema: "public",
+  };
   await assertCommands(
     [
       ssh,
       docker,
-      `'psql' 'postgresql://localhost:5432/public' '--quiet' '--command' 'select 'hi' from \"table\" where id = 1;'`,
+      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--quiet' '--command' 'set search_path to \"public\"; select 'hi' from \"table\" where id = 1;'`,
     ],
     runner.run(
       "pg",
       [`select 'hi' from "table" where id = 1;`],
       true,
       false,
-      {},
+      pgParams,
+      true,
+    ),
+  );
+  await assertCommands(
+    [
+      ssh,
+      docker,
+      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--quiet' '--command' 'set search_path to \"public\"; select json_agg(_zored_deno_jsonEverything) from (select * from pg_catalog.pg_tables where schemaname != 'pg_catalog' and schemaname = 'public') _zored_deno_jsonEverything;' '--no-align' '--tuples-only'`,
+    ],
+    runner.run(
+      "pg",
+      [`j t`],
+      true,
+      false,
+      pgParams,
       true,
     ),
   );
@@ -143,7 +162,7 @@ test("test eval", async () => {
     finds: ["post", "gres"],
   };
   await assertCommands(
-    [`kubectl exec -it postgres-1 pwd`],
+    [`kubectl exec -it postgres-1 -- pwd`],
     runner.run(
       "/k8s",
       ["pwd"],

@@ -103,7 +103,7 @@ export class ProxyRunner {
     }
 
     commands.add(
-      await this.getLastProxyCommands(configs, isEval, lastArgs, exec),
+      await this.getLastProxyCommands(configs, isEval, lastArgs, exec, params),
     );
 
     return await this.handleCommands(commands, dry);
@@ -122,13 +122,14 @@ export class ProxyRunner {
     isEval: boolean,
     lastProxyArgs: ShCommands,
     exec: ExecSubCommand,
+    params: Params,
   ) => {
     const [config] = configs.slice(-1);
     const handler = this.getHandler(config);
     return (isEval
       ? await handler.getEval(lastProxyArgs, config, exec)
       : handler.getTty(config).concat(lastProxyArgs))
-      .map((a) => this.enrichArgument(a, config))
+      .flatMap((a) => this.enrichArgument(a, config, params))
       .map((a) => configs.length > 1 ? `'${a}'` : a);
   };
 
@@ -160,19 +161,18 @@ export class ProxyRunner {
     isLast: boolean,
   ): Promise<ShCommands | null> => {
     const handler = this.getHandler(config);
-    const done = await handler.handleParams(
-      config,
-      params,
-      exec,
-    );
+    const done = await handler.handleParams(config, params, exec);
     if (done) {
       return null;
     }
     return handler.getChainBase(config, isLast);
   };
 
-  private enrichArgument = (a: string, c: ProxyConfig): string =>
-    this.getHandler(c).enrichArgument(a, c);
+  private enrichArgument = (
+    a: string,
+    c: ProxyConfig,
+    params: Params,
+  ): string[] => this.getHandler(c).enrichArgument(a, c, params);
 
   private getHandler(c: ProxyConfig): ProxyHandler<any> {
     const handler = this.handlers.find((h: ProxyHandler<any>) => h.suits(c));

@@ -23,7 +23,7 @@ export abstract class ProxyHandler<Config extends ProxyConfig> {
   ): Promise<ShCommands> => cs;
   getTty = (c: Config): ShCommands => [];
 
-  enrichArgument = (a: string, c: Config) => a;
+  enrichArgument = (a: string, proxyConfig: Config, params: Params) => [a];
 
   handleParams = async (
     c: Config,

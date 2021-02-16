@@ -1,6 +1,6 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
 import type { ProxyConfig } from "../ProxyConfigs.ts";
-import type { ShCommands } from "../ProxyRunner.ts";
+import type { Params, ShCommands } from "../ProxyRunner.ts";
 
 export interface MongoConfig extends ProxyConfig {
   type: "mongo";
@@ -34,7 +34,7 @@ export class MongoHandler extends ProxyHandler<MongoConfig> {
     return this.mongo(c, ["--eval", cs.join(" ")]);
   };
 
-  enrichArgument = (a: string, c: MongoConfig) => {
+  enrichArgument = (a: string, c: MongoConfig, params: Params): string[] => {
     const isEval = this.lastArgument === "--eval";
 
     // Replace JSON:
@@ -48,14 +48,14 @@ export class MongoHandler extends ProxyHandler<MongoConfig> {
     }
 
     if (c.slave !== true) {
-      return a;
+      return [a];
     }
     if (isEval) {
       a = `rs.slaveOk(); ${a}`;
     }
 
     this.lastArgument = a;
-    return a;
+    return [a];
   };
 
   private mongo = (

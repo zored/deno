@@ -25,7 +25,7 @@ export class K8SHandler extends ProxyHandler<IK8SProxy> {
 
   getBase = (
     c: IK8SProxy,
-  ) => ["kubectl", "exec", "-it", c.pod];
+  ) => ["kubectl", "exec", "-it", c.pod, "--"];
   suits = (c: IK8SProxy) => c.type === "k8s";
   getTty = () => ["sh"];
 
