@@ -142,6 +142,21 @@ test("test eval", async () => {
       true,
     ),
   );
+  await assertCommands(
+    [
+      ssh,
+      docker,
+      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--quiet' '--command' 'set search_path to \"public\"; select json_agg(_zored_deno_jsonEverything) from (select table_schema, table_name, column_name, data_type from information_schema.columns where table_name IN ('one','two') order by table_name, ordinal_position) _zored_deno_jsonEverything;' '--no-align' '--tuples-only'`,
+    ],
+    runner.run(
+      "pg",
+      [`j t one two`],
+      true,
+      false,
+      pgParams,
+      true,
+    ),
+  );
 
   stub(
     shRunner,

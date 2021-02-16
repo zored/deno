@@ -48,7 +48,7 @@ export class PostgresHandler extends ProxyHandler<PostgresConfig> {
         case "j":
           json = true;
           argument = `select json_agg(${jsonSpecificName}) from (${
-            this.expandAlias(argument, schema)
+            this.expandAlias(argument, schema).replace(/;\s*$/, "")
           }) ${jsonSpecificName};`;
           break;
         default:
@@ -89,11 +89,25 @@ export class PostgresHandler extends ProxyHandler<PostgresConfig> {
   };
 
   private expandAlias(argument: string, schema?: string): string {
-    switch (argument) {
+    const [head, ...tail] = argument.split(" ");
+    argument = tail.join(" ");
+
+    switch (head) {
       case "t":
       case "tables":
-        const schemaCond = schema ? `= '${schema}'` : "!= 'information_schema'";
-        return `select * from pg_catalog.pg_tables where schemaname != 'pg_catalog' and schemaname ${schemaCond}`;
+        switch (tail.length) {
+          case 0:
+            const schemaCond = schema
+              ? `= '${schema}'`
+              : "!= 'information_schema'";
+            return `select * from pg_catalog.pg_tables where schemaname != 'pg_catalog' and schemaname ${schemaCond};`;
+          default:
+            const tables = tail.map((t) => `'${t}'`).join(",");
+            return `select table_schema, table_name, column_name, data_type from information_schema.columns where table_name IN (${tables}) order by table_name, ordinal_position;`;
+        }
+
+      default:
+        return (head + " " + argument).trim();
     }
     return argument;
   }
