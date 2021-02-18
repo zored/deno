@@ -82,6 +82,7 @@ export class PostgresHandler extends ProxyHandler<PostgresConfig> {
       "psql",
       c.uri,
       "--no-psqlrc",
+      "--pset=pager=off",
       "--quiet",
       ...this.getFlags(c),
       ...args,
@@ -94,6 +95,7 @@ export class PostgresHandler extends ProxyHandler<PostgresConfig> {
 
     switch (head) {
       case "t":
+      case "table":
       case "tables":
         switch (tail.length) {
           case 0:
@@ -104,6 +106,29 @@ export class PostgresHandler extends ProxyHandler<PostgresConfig> {
           default:
             const tables = tail.map((t) => `'${t}'`).join(",");
             return `select table_schema, table_name, column_name, data_type from information_schema.columns where table_name IN (${tables}) order by table_name, ordinal_position;`;
+        }
+
+      case "a":
+      case "all":
+      case "f":
+      case "first":
+        switch (tail.length) {
+          case 1:
+            let limit = "";
+            if (head === "f" || head === "first") {
+              limit = "limit 1";
+            }
+            return tail.map((t) => `select * from "${t}" ${limit}`).join(";");
+          default:
+            throw new Error("Use one table name.");
+        }
+      case "c":
+      case "count":
+        switch (tail.length) {
+          case 1:
+            return tail.map((t) => `select COUNT(1) from "${t}"`).join(";");
+          default:
+            throw new Error("Use one table name.");
         }
 
       default:

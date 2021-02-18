@@ -116,7 +116,7 @@ test("test eval", async () => {
     [
       ssh,
       docker,
-      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--quiet' '--command' 'set search_path to \"public\"; select 'hi' from \"table\" where id = 1;'`,
+      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select 'hi' from \"table\" where id = 1;'`,
     ],
     runner.run(
       "pg",
@@ -131,7 +131,7 @@ test("test eval", async () => {
     [
       ssh,
       docker,
-      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--quiet' '--command' 'set search_path to \"public\"; select json_agg(_zored_deno_jsonEverything) from (select * from pg_catalog.pg_tables where schemaname != 'pg_catalog' and schemaname = 'public') _zored_deno_jsonEverything;' '--no-align' '--tuples-only'`,
+      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select json_agg(_zored_deno_jsonEverything) from (select * from pg_catalog.pg_tables where schemaname != 'pg_catalog' and schemaname = 'public') _zored_deno_jsonEverything;' '--no-align' '--tuples-only'`,
     ],
     runner.run(
       "pg",
@@ -146,11 +146,41 @@ test("test eval", async () => {
     [
       ssh,
       docker,
-      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--quiet' '--command' 'set search_path to \"public\"; select json_agg(_zored_deno_jsonEverything) from (select table_schema, table_name, column_name, data_type from information_schema.columns where table_name IN ('one','two') order by table_name, ordinal_position) _zored_deno_jsonEverything;' '--no-align' '--tuples-only'`,
+      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select json_agg(_zored_deno_jsonEverything) from (select table_schema, table_name, column_name, data_type from information_schema.columns where table_name IN ('one','two') order by table_name, ordinal_position) _zored_deno_jsonEverything;' '--no-align' '--tuples-only'`,
     ],
     runner.run(
       "pg",
       [`j t one two`],
+      true,
+      false,
+      pgParams,
+      true,
+    ),
+  );
+  await assertCommands(
+    [
+      ssh,
+      docker,
+      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select * from \"three\" limit 1'`,
+    ],
+    runner.run(
+      "pg",
+      [`f three`],
+      true,
+      false,
+      pgParams,
+      true,
+    ),
+  );
+  await assertCommands(
+    [
+      ssh,
+      docker,
+      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select COUNT(1) from \"four\"'`,
+    ],
+    runner.run(
+      "pg",
+      [`c four`],
       true,
       false,
       pgParams,
