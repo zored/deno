@@ -1,7 +1,7 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
 import type { ProxyConfig } from "../ProxyConfigs.ts";
 import type { ShCommands } from "../ProxyRunner.ts";
-import { Params } from "../ProxyRunner.ts";
+import { ExecSubCommand, Params } from "../ProxyRunner.ts";
 
 export interface PostgresConfig extends ProxyConfig {
   type: "postgres";
@@ -28,11 +28,12 @@ export class PostgresHandler extends ProxyHandler<PostgresConfig> {
   getEval = async (cs: ShCommands, c: PostgresConfig) =>
     this.psql(c, [commandArgument, cs.join(" ")]);
 
-  enrichArgument = (
+  enrichArgument = async (
     argument: string,
     c: PostgresConfig,
     params: Params,
-  ): string[] => {
+    exec: ExecSubCommand,
+  ): Promise<string[]> => {
     let json = false;
     if (this.lastArgument === commandArgument) {
       const p = params as PostgresParams;

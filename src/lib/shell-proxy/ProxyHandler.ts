@@ -14,7 +14,7 @@ export abstract class ProxyHandler<Config extends ProxyConfig> {
     ];
   }
 
-  abstract getBase(c: Config): ShCommands;
+  protected abstract getBase(c: Config): ShCommands;
 
   getEval = async (
     cs: ShCommands,
@@ -23,13 +23,18 @@ export abstract class ProxyHandler<Config extends ProxyConfig> {
   ): Promise<ShCommands> => cs;
   getTty = (c: Config): ShCommands => [];
 
-  enrichArgument = (a: string, proxyConfig: Config, params: Params) => [a];
-
   handleParams = async (
     c: Config,
     params: Params,
     exec: ExecSubCommand,
   ): Promise<boolean | void> => {};
+
+  enrichArgument = async (
+    a: string,
+    proxyConfig: Config,
+    params: Params,
+    exec: ExecSubCommand,
+  ) => [a];
 
   protected getFlags = (config: ProxyConfig): ShCommands =>
     Object.entries(config.flags || {}).reduce(

@@ -1,5 +1,5 @@
 import { green, parse } from "../../../deps.ts";
-import { IRunner, Runner, sh, shOut } from "../command.ts";
+import { IRunner, Runner, sh } from "../command.ts";
 import type { ProxyHandler } from "./ProxyHandler.ts";
 import { SSHHandler } from "./ProxyHandler/SSHHandler.ts";
 import { DockerHandler } from "./ProxyHandler/DockerHandler.ts";
@@ -126,11 +126,13 @@ export class ProxyRunner {
   ) => {
     const [config] = configs.slice(-1);
     const handler = this.getHandler(config);
-    return (isEval
-      ? await handler.getEval(lastProxyArgs, config, exec)
-      : handler.getTty(config).concat(lastProxyArgs))
-      .flatMap((a) => this.enrichArgument(a, config, params))
-      .map((a) => configs.length > 1 ? `'${a}'` : a);
+    return (await Promise.all(
+      (
+        isEval
+          ? await handler.getEval(lastProxyArgs, config, exec)
+          : handler.getTty(config).concat(lastProxyArgs)
+      ).flatMap((a) => this.enrichArgument(a, config, params, exec)),
+    )).flat().map((a) => configs.length > 1 ? `'${a}'` : a);
   };
 
   private exec = async (cs: CommandBuilder) => {
@@ -168,11 +170,13 @@ export class ProxyRunner {
     return handler.getChainBase(config, isLast);
   };
 
-  private enrichArgument = (
+  private enrichArgument = async (
     a: string,
     c: ProxyConfig,
     params: Params,
-  ): string[] => this.getHandler(c).enrichArgument(a, c, params);
+    exec: ExecSubCommand,
+  ): Promise<string[]> =>
+    await this.getHandler(c).enrichArgument(a, c, params, exec);
 
   private getHandler(c: ProxyConfig): ProxyHandler<any> {
     const handler = this.handlers.find((h: ProxyHandler<any>) => h.suits(c));

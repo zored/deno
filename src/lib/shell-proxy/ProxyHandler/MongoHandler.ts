@@ -1,6 +1,7 @@
 import { ProxyHandler } from "../ProxyHandler.ts";
 import type { ProxyConfig } from "../ProxyConfigs.ts";
 import type { Params, ShCommands } from "../ProxyRunner.ts";
+import { ExecSubCommand } from "../ProxyRunner.ts";
 
 export interface MongoConfig extends ProxyConfig {
   type: "mongo";
@@ -34,7 +35,12 @@ export class MongoHandler extends ProxyHandler<MongoConfig> {
     return this.mongo(c, ["--eval", cs.join(" ")]);
   };
 
-  enrichArgument = (a: string, c: MongoConfig, params: Params): string[] => {
+  enrichArgument = async (
+    a: string,
+    c: MongoConfig,
+    params: Params,
+    exec: ExecSubCommand,
+  ): Promise<string[]> => {
     const isEval = this.lastArgument === "--eval";
 
     // Replace JSON:
