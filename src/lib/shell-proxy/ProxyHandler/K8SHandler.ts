@@ -64,6 +64,7 @@ export class K8SHandler extends ProxyHandler<IK8SProxy> {
     params: Params,
     exec: ExecSubCommand,
   ): Promise<string[]> => {
+    argument = argument.replaceAll("%pod%", c.pod);
     let result = [argument];
 
     const p: K8SParams = params;

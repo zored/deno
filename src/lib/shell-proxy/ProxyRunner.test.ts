@@ -210,10 +210,10 @@ test("test eval", async () => {
     finds: ["post", "gres"],
   };
   await assertCommands(
-    [`kubectl exec -it postgres-1 -- pwd`],
+    [`kubectl exec -it postgres-1 -- echo postgres-1`],
     runner().run(
       "/k8s",
-      ["e", "pwd"],
+      ["e", "echo %pod%"],
       true,
       false,
       k8sFinds,
