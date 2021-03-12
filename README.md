@@ -58,7 +58,7 @@ Ussage:
 - Check dependencies:
     ```sh
     deno run --allow-read \
-        https://raw.githubusercontent.com/zored/deno/v0.0.37/src/dep-check.ts \
+        https://raw.githubusercontent.com/zored/deno/v0.0.70/src/dep-check.ts \
             $PWD \
             $PWD/dep-check.json
     ```
@@ -80,7 +80,7 @@ Useful git actions.
 Example (increments minor version with prefix `v`):
 ```sh
 deno run --allow-run --allow-read \
-    https://raw.githubusercontent.com/zored/deno/v0.0.37/src/git.ts \
+    https://raw.githubusercontent.com/zored/deno/v0.0.70/src/git.ts \
 	    incVer
 ```
 
@@ -89,7 +89,7 @@ Example: build commit message:
 deno install \
   --allow-run --allow-write --allow-read \
   -f --name zored-git \
-  https://raw.githubusercontent.com/zored/deno/v0.0.37/src/git.ts
+  https://raw.githubusercontent.com/zored/deno/v0.0.70/src/git.ts
 
 zored-git message add 'create repo'
 zored-git message add 'create service'
@@ -107,7 +107,7 @@ Lint Golang according to some advanced rules:
 Example:
 ```sh
 deno run --allow-read \
-    https://raw.githubusercontent.com/zored/deno/v0.0.37/src/go-lint.ts \
+    https://raw.githubusercontent.com/zored/deno/v0.0.70/src/go-lint.ts \
         $PWD
 ```
 
@@ -129,7 +129,7 @@ Example:
 - Run:
     ```sh
     deno run --allow-read --allow-write \
-        https://raw.githubusercontent.com/zored/deno/v0.0.37/src/info.ts \
+        https://raw.githubusercontent.com/zored/deno/v0.0.70/src/info.ts \
             README.md
     ```
 
@@ -142,7 +142,7 @@ Autocomplete commands in SH.
 
 Example:
 ```sh
-deno install -f https://raw.githubusercontent.com/zored/deno/v0.0.37/src/shell-completion.ts
+deno install -f https://raw.githubusercontent.com/zored/deno/v0.0.70/src/shell-completion.ts
 eval "$(shell-completion completion --name=shell-completion)"
 
 # Now completion works:
@@ -193,7 +193,7 @@ sp -e -- db1 'db.people.count()'
     # Alias:
     alias sp='deno run \
       --allow-run --allow-env --allow-read --quiet --unstable \
-      https://raw.githubusercontent.com/zored/deno/v0.0.46/src/shell-proxy.ts \
+      https://raw.githubusercontent.com/zored/deno/v0.0.70/src/shell-proxy.ts \
       --config $HOME/shell-proxy.json
     '
   

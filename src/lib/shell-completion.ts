@@ -39,7 +39,7 @@ export const completionByCommands = (
   importMeta: ImportMeta,
   commands: Commands,
   name = "./run.ts",
-) => new CommandFactory(importMeta.url, name);
+) => (new CommandFactory(importMeta.url, name));
 
 export const completionByArgs = (
   importMeta: ImportMeta,

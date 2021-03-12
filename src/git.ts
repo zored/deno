@@ -1,6 +1,7 @@
 #!/usr/bin/env deno run --allow-run --allow-write --allow-read
 import {
   Commands,
+  completionByCommands,
   GitClient,
   GitPaths,
   MessageBuilderRepo,
@@ -12,7 +13,7 @@ const git = new GitClient();
 const messageBuilders = new MessageBuilderRepo();
 const defaultRoot = "/Users/r.akhmerov/git";
 
-new Commands({
+const commands = new Commands({
   recent: async ({ _: [i] }) => {
     const refs = await git.recentRefs();
     const output = ((i === undefined)
@@ -38,4 +39,8 @@ new Commands({
       await print(message);
     },
   },
-}).runAndExit();
+});
+
+completionByCommands(import.meta, commands, "zdgit");
+
+commands.runAndExit();
