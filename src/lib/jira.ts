@@ -214,7 +214,8 @@ export class BrowserClient {
 
   async fetchAllIssues() {
     const issues: ITableIssue[] = [];
-    for (let startIndex = 0;;) {
+    const maxIndex = 200;
+    for (let startIndex = 0; startIndex <= maxIndex;) {
       console.log(`fetching ${startIndex}...`);
       const response = await this.fetchIssues(startIndex);
       const { table, pageSize } = response.issueTable;
