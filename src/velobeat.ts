@@ -1,5 +1,5 @@
 // Usage:
-//  deno run --unstable -A https://raw.githubusercontent.com/zored/deno/v0.0.72/src/shell-completion.ts 2021-04-05 4,12
+//  deno run --unstable -A https://raw.githubusercontent.com/zored/deno/v0.0.72/src/velobeat.ts 2021-04-05 4,12
 // Where:
 //  2021-04-05 - is monday date.
 //  4,12 - is allowed diff length.
