@@ -18,8 +18,9 @@ export { exec, OutputMode } from "https://deno.land/x/exec@0.0.5/mod.ts";
 // Object:
 import camelCase from "https://deno.land/x/lodash@4.17.15-es/camelCase.js";
 import snakeCase from "https://deno.land/x/lodash@4.17.15-es/snakeCase.js";
+import merge from "https://deno.land/x/lodash@4.17.15-es/merge.js";
 import upperFirst from "https://deno.land/x/lodash@4.17.15-es/upperFirst.js";
 import parseXml from "https://denopkg.com/nekobato/deno-xml-parser/index.ts";
 
-export { camelCase, parseXml, snakeCase, upperFirst };
+export { camelCase, merge, parseXml, snakeCase, upperFirst };
 export { SemVer } from "https://deno.land/x/semver@v1.0.0/mod.ts";

@@ -19,11 +19,6 @@ interface NodeAddress {
   nodeId: number;
 }
 
-interface StepAddress {
-  node: NodeAddress;
-  stepId: number;
-}
-
 type QueueItemId = number;
 
 export class PathRetriever {
