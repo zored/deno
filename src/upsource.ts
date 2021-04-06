@@ -1,23 +1,51 @@
 #!/usr/bin/env deno run --allow-net --allow-read --allow-env --allow-write
 import { secrets } from "./rob-only-upsource.ts";
 import { UpsourceApi } from "./lib/upsource.ts";
+import { Commands } from "./lib/command.ts";
 
 const { authorization, host } = secrets;
 
-const main = async () => {
-  const api = new UpsourceApi(host, authorization);
+const api = new UpsourceApi(host, authorization);
 
+await new Commands({
+  toReview: async ({ _: [path] }) =>
+    console.log(JSON.stringify(
+      (await Promise.all([
+        "reviewer",
+        "author",
+      ].map((me) =>
+        api.getReviews({
+          limit: 100,
+          query: `state: open and ${me}: me`,
+        })
+      )))
+        .flatMap((r, i) => r.result.reviews.map((r) => [r, i == 1]))
+        .sort(([a], [b]) => a.updatedAt - b.updatedAt)
+        .map(([r, myBranch]) => ({
+          url:
+            `https://upsource.kube.ec.devmail.ru/${r.reviewId.projectId}/review/${r.reviewId.reviewId}`,
+          updatedAt: (new Date(r.updatedAt)).toLocaleString("ru-RU", {
+            timeZone: "Europe/Moscow",
+          }),
+          unread: r.isUnread,
+          concern: r.completionRate.hasConcern,
+          myBranch,
+        })),
+    )),
+  // fetch: async ({ _: [path, init] }) =>
+  //     console.log(JSON.stringify(
+  //         await gitlabApi.fetch(
+  //             path + "",
+  //             JSON.parse(init ? (init + "") : "{}") as RequestInit,
+  //         ),
+  //     )),
+}).runAndExit();
+
+const main = async () => {
   const firstArg = Deno.args[0];
   switch (firstArg) {
     case "for-me":
     case "from-me":
-      const me = firstArg === "for-me" ? "reviewer" : "author";
-      console.log(JSON.stringify(
-        await api.getReviews({
-          limit: 100,
-          query: `state: open and ${me}: me`,
-        }),
-      ));
       break;
     default:
       Deno.exit(1);

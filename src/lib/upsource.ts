@@ -6,6 +6,15 @@ interface ReviewsRequest {
   skip?: number;
 }
 
+interface Resulting<T> {
+  result: T;
+}
+
+interface CompletionRateDTO {
+  completedCount: number;
+  reviewersCount: number;
+  hasConcern: boolean;
+}
 interface ReviewList {
   reviews: ReviewDescriptor[];
   hasMore: boolean;
@@ -15,6 +24,9 @@ interface ReviewList {
 interface ReviewDescriptor {
   reviewId: ReviewId;
   title: string;
+  completionRate: CompletionRateDTO;
+  updatedAt: number;
+  isUnread: boolean;
 }
 
 interface ReviewId {
@@ -36,7 +48,7 @@ export class UpsourceApi {
   }
 
   getReviews = async (dto: ReviewsRequest = { limit: 10 }) =>
-    this.rpc<ReviewList>("getReviews", dto);
+    this.rpc<Resulting<ReviewList>>("getReviews", dto);
   createReview = async (dto: CreateReviewRequest) =>
     this.rpc<ReviewDescriptor>("createReview", dto);
 
