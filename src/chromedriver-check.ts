@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run --allow-run
+#!/usr/bin/env deno run -A
 import { exec, OutputMode } from "../deps.ts";
 const { exit } = Deno;
 const responses = await Promise.all([

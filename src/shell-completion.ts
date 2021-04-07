@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run --allow-write --quiet
+#!/usr/bin/env deno run -A --quiet
 import { completionByCommands } from "./lib/shell-completion.ts";
 import { Commands } from "../mod.ts";
 

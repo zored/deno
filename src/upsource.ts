@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run --allow-net --allow-read --allow-env --allow-write
+#!/usr/bin/env deno run -A
 import { secrets } from "./rob-only-upsource.ts";
 import { UpsourceApi } from "./lib/upsource.ts";
 import { Commands } from "./lib/command.ts";
@@ -19,7 +19,7 @@ await new Commands({
           query: `state: open and ${me}: me`,
         })
       )))
-        .flatMap((r, i) => r.result.reviews.map((r) => [r, i == 1]))
+        .flatMap((r, i) => (r.result.reviews || []).map((r) => [r, i == 1]))
         .sort(([a], [b]) => a.updatedAt - b.updatedAt)
         .map(([r, myBranch]) => ({
           url:
@@ -32,13 +32,6 @@ await new Commands({
           myBranch,
         })),
     )),
-  // fetch: async ({ _: [path, init] }) =>
-  //     console.log(JSON.stringify(
-  //         await gitlabApi.fetch(
-  //             path + "",
-  //             JSON.parse(init ? (init + "") : "{}") as RequestInit,
-  //         ),
-  //     )),
 }).runAndExit();
 
 const main = async () => {

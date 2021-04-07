@@ -6,9 +6,13 @@ const { writeTextFile, readTextFile, env: { get: env } } = Deno;
 export type IssueKey = string;
 
 export interface ITableIssue {
-  key: IssueKey;
+  id: IssueKey;
+  key: string;
   status: string;
   summary: string;
+  type: {
+    name: string;
+  };
 }
 
 interface ITableIssueCache {
@@ -37,7 +41,7 @@ const debug = (
 export class BrowserClientFactory {
   create = async () => {
     const auth = {
-      host: env("JIRA_HOST") ?? "",
+      host: this.getHost() ?? "",
       cookies: env("JIRA_COOKIES") ?? "",
     };
 
@@ -55,6 +59,10 @@ export class BrowserClientFactory {
 
     return new BrowserClient(auth.host, auth.cookies);
   };
+
+  getHost() {
+    return env("JIRA_HOST");
+  }
 }
 
 export class IssuesCacher {
@@ -69,7 +77,10 @@ export class IssuesCacher {
       console.log("issues are fresh");
       return;
     }
-    const issues = await this.api.fetchAllIssues();
+    const issues = await this.api.fetchAllIssues(
+      BrowserClient.JQL_TOUCHED_BY_ME,
+      true,
+    );
     await this.repo.saveIssues(issues);
   }
 
@@ -117,6 +128,10 @@ declare module JiraApi {
 }
 
 export class BrowserClient {
+  public static JQL_TOUCHED_BY_ME =
+    "assignee = currentUser() or assignee was currentUser() and updated > startOfMonth(-1) order by updated desc";
+  public static JQL_MY_UNRESOLVED =
+    "assignee = currentUser() AND resolution = Unresolved order by updated DESC";
   constructor(private readonly host: string, private readonly cookie: string) {
     this.host = this.host.replace(/\/+$/, "");
   }
@@ -198,26 +213,26 @@ export class BrowserClient {
     return suggestions[0].id;
   };
 
-  fetchIssues = async (startIndex = 0) =>
+  private issueTable = async (jql: string, startIndex = 0) =>
     this.json(this.post(
       "/rest/issueNav/1/issueTable",
       parseQuery({
         startIndex: [startIndex.toString()],
         jql: [
-          encodeURIComponent(
-            "assignee = currentUser() or assignee was currentUser() and updated > startOfMonth(-1) order by updated desc",
-          ),
+          encodeURIComponent(jql),
         ],
         layoutKey: ["split-view"],
       }),
     ));
 
-  async fetchAllIssues() {
+  async fetchAllIssues(jql: string, verbose = false): Promise<ITableIssue[]> {
     const issues: ITableIssue[] = [];
     const maxIndex = 200;
     for (let startIndex = 0; startIndex <= maxIndex;) {
-      console.log(`fetching ${startIndex}...`);
-      const response = await this.fetchIssues(startIndex);
+      if (verbose) {
+        console.log(`fetching ${startIndex}...`);
+      }
+      const response = await this.issueTable(jql, startIndex);
       const { table, pageSize } = response.issueTable;
       const done = table.length < pageSize;
       issues.push(...table);

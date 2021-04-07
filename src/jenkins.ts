@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run --allow-net --allow-read --allow-env --allow-write
+#!/usr/bin/env deno run -A
 import { JenkinsApi, JenkinsApiInfo } from "./lib/jenkins.ts";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import { secrets } from "./rob-only-jenkins.ts";

@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run --allow-read
+#!/usr/bin/env deno run -A
 import { bold, red } from "../deps.ts";
 
 async function main() {

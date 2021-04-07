@@ -16,7 +16,7 @@ interface CompletionRateDTO {
   hasConcern: boolean;
 }
 interface ReviewList {
-  reviews: ReviewDescriptor[];
+  reviews: ReviewDescriptor[] | undefined;
   hasMore: boolean;
   totalCount: number;
 }

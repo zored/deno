@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run --allow-run --allow-write --allow-read
+#!/usr/bin/env deno run -A
 import {
   Commands,
   completionByCommands,
