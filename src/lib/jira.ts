@@ -40,10 +40,10 @@ export class JiraCookieListener {
       );
 
       const auth: { cookies: string } = JSON.parse(
-        await Deno.readTextFile(jiraAuthPath),
+        await Deno.readTextFile(jiraAuthPath()),
       );
       auth.cookies = cookies;
-      Deno.writeTextFileSync(jiraAuthPath, JSON.stringify(auth));
+      Deno.writeTextFileSync(jiraAuthPath(), JSON.stringify(auth));
       console.log("wrote cookies");
 
       request.respond({
@@ -66,7 +66,7 @@ const debug = (
   }
 };
 
-const jiraAuthPath = join(env("HOME") ?? ".", "jira-auth.json");
+const jiraAuthPath = () => join(env("HOME") ?? ".", "jira-auth.json");
 
 export class BrowserClientFactory {
   create = async () => {
@@ -77,12 +77,12 @@ export class BrowserClientFactory {
 
     try {
       const file = JSON.parse(
-        await readTextFile(jiraAuthPath),
+        await readTextFile(jiraAuthPath()),
       );
       auth.host = file.host || auth.host;
       auth.cookies = file.cookies || auth.cookies;
     } catch (e) {
-      debug((l) => l(`could not open ${jiraAuthPath}`, { e }));
+      debug((l) => l(`could not open ${jiraAuthPath()}`, { e }));
       // That is ok.
     }
 
