@@ -1,4 +1,4 @@
-import { join } from "../../deps.ts";
+import { join, serve } from "../../deps.ts";
 import { parseQuery, QueryObject } from "./url.ts";
 
 const { writeTextFile, readTextFile, env: { get: env } } = Deno;
@@ -28,6 +28,34 @@ export class IssueCacherFactory {
     );
 }
 
+export class JiraCookieListener {
+  async start(port: number) {
+    if (!port) {
+      throw new Error("specify port");
+    }
+    console.log(`Listening port ${port} for Jira cookies...`);
+    for await (const request of serve({ port })) {
+      const cookies = new TextDecoder().decode(
+        await Deno.readAll(request.body),
+      );
+
+      const auth: { cookies: string } = JSON.parse(
+        await Deno.readTextFile(jiraAuthPath),
+      );
+      auth.cookies = cookies;
+      Deno.writeTextFileSync(jiraAuthPath, JSON.stringify(auth));
+      console.log("wrote cookies");
+
+      request.respond({
+        headers: new Headers({
+          "Access-Control-Allow-Origin": "*",
+        }),
+        body: "ok",
+      });
+    }
+  }
+}
+
 const debug = (
   f: (
     l: (...p: Parameters<typeof console.log>) => ReturnType<typeof console.log>,
@@ -38,6 +66,8 @@ const debug = (
   }
 };
 
+const jiraAuthPath = join(env("HOME") ?? ".", "jira-auth.json");
+
 export class BrowserClientFactory {
   create = async () => {
     const auth = {
@@ -45,15 +75,14 @@ export class BrowserClientFactory {
       cookies: env("JIRA_COOKIES") ?? "",
     };
 
-    const path = "jira-auth.json";
     try {
       const file = JSON.parse(
-        await readTextFile(join(env("HOME") ?? ".", path)),
+        await readTextFile(jiraAuthPath),
       );
       auth.host = file.host || auth.host;
       auth.cookies = file.cookies || auth.cookies;
     } catch (e) {
-      debug((l) => l(`could not open ${path}`, { e }));
+      debug((l) => l(`could not open ${jiraAuthPath}`, { e }));
       // That is ok.
     }
 
@@ -132,6 +161,7 @@ export class BrowserClient {
     "assignee = currentUser() or assignee was currentUser() and updated > startOfMonth(-1) order by updated desc";
   public static JQL_MY_UNRESOLVED =
     "assignee = currentUser() AND resolution = Unresolved order by updated DESC";
+
   constructor(private readonly host: string, private readonly cookie: string) {
     this.host = this.host.replace(/\/+$/, "");
   }
@@ -213,6 +243,26 @@ export class BrowserClient {
     return suggestions[0].id;
   };
 
+  async fetchAllIssues(jql: string, verbose = false): Promise<ITableIssue[]> {
+    const issues: ITableIssue[] = [];
+    const maxIndex = 200;
+    for (let startIndex = 0; startIndex <= maxIndex;) {
+      if (verbose) {
+        console.log(`fetching ${startIndex}...`);
+      }
+      const response = await this.issueTable(jql, startIndex);
+      console.log(response);
+      const { table, pageSize } = response.issueTable;
+      const done = table.length < pageSize;
+      issues.push(...table);
+      if (done) {
+        break;
+      }
+      startIndex += pageSize;
+    }
+    return issues;
+  }
+
   private issueTable = async (jql: string, startIndex = 0) =>
     this.json(this.post(
       "/rest/issueNav/1/issueTable",
@@ -224,25 +274,6 @@ export class BrowserClient {
         layoutKey: ["split-view"],
       }),
     ));
-
-  async fetchAllIssues(jql: string, verbose = false): Promise<ITableIssue[]> {
-    const issues: ITableIssue[] = [];
-    const maxIndex = 200;
-    for (let startIndex = 0; startIndex <= maxIndex;) {
-      if (verbose) {
-        console.log(`fetching ${startIndex}...`);
-      }
-      const response = await this.issueTable(jql, startIndex);
-      const { table, pageSize } = response.issueTable;
-      const done = table.length < pageSize;
-      issues.push(...table);
-      if (done) {
-        break;
-      }
-      startIndex += pageSize;
-    }
-    return issues;
-  }
 
   private init = (form = true): RequestInit => ({
     "headers": {

@@ -136,6 +136,7 @@ Example:
 ## jira
 Some Jira actions.
 - Cache and retrieve Jira issue names.
+- Jira API [via browser cache](./src/chrome-extension/jira-cookie-sender/README.md).
 
 ## shell-completion
 Autocomplete commands in SH.

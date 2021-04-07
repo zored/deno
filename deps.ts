@@ -1,17 +1,18 @@
 // STD:
-export { parse } from "https://deno.land/std@0.67.0/flags/mod.ts";
-export type { Args } from "https://deno.land/std@0.67.0/flags/mod.ts";
-export { delay } from "https://deno.land/std@0.67.0/async/mod.ts";
+export { serve } from "https://deno.land/std@0.92.0/http/server.ts";
+export { parse } from "https://deno.land/std@0.92.0/flags/mod.ts";
+export type { Args } from "https://deno.land/std@0.92.0/flags/mod.ts";
+export { delay } from "https://deno.land/std@0.92.0/async/mod.ts";
 export {
   basename,
   dirname,
   join,
-} from "https://deno.land/std@0.67.0/path/mod.ts";
-export { bold, green, red } from "https://deno.land/std@0.67.0/fmt/colors.ts";
+} from "https://deno.land/std@0.92.0/path/mod.ts";
+export { bold, green, red } from "https://deno.land/std@0.92.0/fmt/colors.ts";
 export {
   assertEquals,
-  assertStringContains as assertStrContains,
-} from "https://deno.land/std@0.67.0/testing/asserts.ts";
+  assertStringIncludes as assertStrContains,
+} from "https://deno.land/std@0.92.0/testing/asserts.ts";
 
 export { exec, OutputMode } from "https://deno.land/x/exec@0.0.5/mod.ts";
 
