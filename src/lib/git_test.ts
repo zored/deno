@@ -14,6 +14,9 @@ Deno.test("client", async () => {
     getUntracked: notImplemented,
     lastTag: notImplemented,
     pushNewTag: notImplemented,
+    getBranchCommits: notImplemented,
+    getCurrentBranch: notImplemented,
+    getRemoteUrl: notImplemented,
   });
   assertEquals([{
     date: new Date("2020-05-29 00:16:32 +0300"),

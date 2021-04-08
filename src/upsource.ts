@@ -32,6 +32,10 @@ await new Commands({
           myBranch,
         })),
     )),
+  fetch: async ({ _: [name, body] }) =>
+    console.log(
+      JSON.stringify(await api.rpc(name + "", JSON.parse(body + ""))),
+    ),
 }).runAndExit();
 
 const main = async () => {

@@ -42,6 +42,13 @@ interface CreateReviewRequest {
   mergeToBranch?: string;
 }
 
+interface RevisionsInReview {
+  reviewId: ReviewId;
+  revisionId: string;
+}
+
+interface VoidMessage {}
+
 // https://upsource.jetbrains.com/~api_doc/reference/Service.html#messages.UpsourceRPC
 export class UpsourceApi {
   constructor(private host: string, private authorizationHeader: string) {
@@ -51,8 +58,10 @@ export class UpsourceApi {
     this.rpc<Resulting<ReviewList>>("getReviews", dto);
   createReview = async (dto: CreateReviewRequest) =>
     this.rpc<ReviewDescriptor>("createReview", dto);
+  addRevisionToReview = async (dto: RevisionsInReview) =>
+    this.rpc<VoidMessage>("addRevisionToReview", dto);
 
-  private async rpc<T>(name: string, body: object): Promise<T> {
+  async rpc<T>(name: string, body: object): Promise<T> {
     return await (await fetch(`${this.host}/~rpc/${name}`, {
       method: "POST",
       headers: {

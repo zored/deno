@@ -3,6 +3,11 @@ import { Runner } from "./command.ts";
 
 const { readTextFile, writeTextFile, remove } = Deno;
 
+interface BranchCommit {
+  subject: string;
+  hash: string;
+}
+
 interface IGitShell {
   reflogSubjects(): Promise<string>;
 
@@ -11,6 +16,12 @@ interface IGitShell {
   lastTag(): Promise<string>;
 
   pushNewTag(tag: string): Promise<void>;
+
+  getBranchCommits(branch: string): Promise<BranchCommit[]>;
+
+  getCurrentBranch(): Promise<string>;
+
+  getRemoteUrl(origin: string): Promise<string>;
 }
 
 class GitShell implements IGitShell {
@@ -30,6 +41,25 @@ class GitShell implements IGitShell {
     await this.run(`git push --tags`);
   };
 
+  async getBranchCommits(branch: string): Promise<BranchCommit[]> {
+    return (await this.run(
+      `git log master..${branch} --pretty=%H%s --no-merges`,
+    ))
+      .split("\n")
+      .map((s) => ({
+        hash: s.substring(0, 40),
+        subject: s.substring(40),
+      }));
+  }
+
+  async getCurrentBranch(): Promise<string> {
+    return await this.run(`git branch --show-current`);
+  }
+
+  async getRemoteUrl(upstream: string): Promise<string> {
+    return await this.run(`git remote get-url ${upstream}`);
+  }
+
   private tag = (tag: string) =>
     this.run(`git tag --annotate ${tag} --message ${tag}`);
 
@@ -48,7 +78,7 @@ interface IReflogSubjects {
 }
 
 export class GitClient {
-  constructor(private git: IGitShell = new GitShell()) {
+  constructor(private api: IGitShell = new GitShell()) {
   }
 
   async recentRefs(): Promise<Ref[]> {
@@ -61,7 +91,7 @@ export class GitClient {
   }
 
   async reflogSubjects(): Promise<IReflogSubjects[]> {
-    const output = await this.git.reflogSubjects();
+    const output = await this.api.reflogSubjects();
     return output
       .split("\n")
       .map((line) =>
@@ -75,14 +105,27 @@ export class GitClient {
       .filter(({ from }) => from !== undefined);
   }
 
-  getUntracked = async () => this.git.getUntracked();
+  getUntracked = async () => this.api.getUntracked();
 
   lastVersion = async () => await this.getLastVersion();
 
-  private getLastVersion = async (): Promise<SemVer> =>
-    new SemVer(await this.git.lastTag());
+  pushNewTag = (tag: string) => this.api.pushNewTag(tag);
 
-  pushNewTag = (tag: string) => this.git.pushNewTag(tag);
+  async getCurrentBranchHashes(): Promise<string[]> {
+    const branch = await this.api.getCurrentBranch();
+    return (await this.api.getBranchCommits(branch))
+      .filter(({ subject }) => subject.startsWith(branch))
+      .map(({ hash }) => hash);
+  }
+
+  getCurrentBranch(): Promise<string> {
+    return this.api.getCurrentBranch();
+  }
+
+  private getLastVersion = async (): Promise<SemVer> =>
+    new SemVer(await this.api.lastTag());
+
+  getOriginUrl = () => this.api.getRemoteUrl("origin");
 }
 
 export class MessageBuilder {
@@ -129,14 +172,6 @@ export class MessageBuilderRepo {
   get = async (): Promise<MessageBuilder> =>
     new MessageBuilder(await this.loadLines());
 
-  private loadLines = async (): Promise<string[]> => {
-    try {
-      return JSON.parse(await readTextFile(this.file)) as string[];
-    } catch (e) {
-      return [];
-    }
-  };
-
   async save(builder: MessageBuilder): Promise<void> {
     const lines = builder.lines;
     if (lines.length === 0) {
@@ -145,4 +180,12 @@ export class MessageBuilderRepo {
       await writeTextFile(this.file, JSON.stringify(lines));
     }
   }
+
+  private loadLines = async (): Promise<string[]> => {
+    try {
+      return JSON.parse(await readTextFile(this.file)) as string[];
+    } catch (e) {
+      return [];
+    }
+  };
 }

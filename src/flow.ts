@@ -8,6 +8,13 @@ import {
 import { GitClient } from "./lib/git.ts";
 import { CliSelect } from "./lib/unstable-command.ts";
 import { IssueCacherFactory } from "./lib/jira.ts";
+import { secrets } from "./rob-only-upsource.ts";
+import { UpsourceApi } from "./lib/upsource.ts";
+const {
+  authorization: upsourceAuth,
+  host: upsourceHost,
+  projectId: upsourceProjectId,
+} = secrets;
 
 await runCommands({
   recent: async ({ i, a, b, n }) => {
@@ -50,5 +57,49 @@ await runCommands({
           summary,
         })),
     ));
+  },
+  putBranchReview: async () => {
+    const git = new GitClient(),
+      issue = await git.getCurrentBranch(),
+      originUrl = (await git.getOriginUrl()),
+      revisions = (await git.getCurrentBranchHashes()),
+      matches = originUrl.match(/\/([^\/]*).git$/);
+    if (!matches) {
+      throw new Error(`Invalid remote url: ${originUrl}`);
+    }
+    const gitlabProject = matches[1];
+    if (revisions.length === 0) {
+      throw new Error(`No revisions found for issue ${issue}.`);
+    }
+
+    const upsourceApi = new UpsourceApi(upsourceHost, upsourceAuth);
+    const response = await upsourceApi.getReviews({
+      limit: 100,
+      query: `${issue}`,
+    });
+
+    const reviews = response.result.reviews || [];
+    let review = reviews.find((r) => r.title.includes(issue));
+
+    if (review) {
+      const { reviewId } = review;
+      console.log(
+        await Promise.all(
+          revisions
+            .map((r) => `${gitlabProject}-${r}`)
+            .map((revisionId) =>
+              upsourceApi.addRevisionToReview({ reviewId, revisionId })
+            ),
+        ),
+      );
+    } else {
+      review = await upsourceApi.createReview({
+        revisions,
+        branch: `${issue}#${gitlabProject}`,
+        projectId: upsourceProjectId,
+      });
+    }
+
+    console.log(JSON.stringify({ review, revisions }));
   },
 });
