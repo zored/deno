@@ -429,6 +429,12 @@ export class BrowserClient {
 
   private getPaths = async <T>(issue: IssueKey): Promise<string[]> =>
     this.getHtmlPaths(await this.getIssueHtml(issue));
+
+  getIssueSummary = async (key: IssueKey) =>
+    (await this.json(
+      this.get(`/rest/agile/1.0/issue/${key}?fields=summary`, {}, false),
+    ))
+      .fields.summary;
 }
 
 export class Repo {

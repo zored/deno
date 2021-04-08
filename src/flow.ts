@@ -10,11 +10,16 @@ import { CliSelect } from "./lib/unstable-command.ts";
 import { IssueCacherFactory } from "./lib/jira.ts";
 import { secrets } from "./rob-only-upsource.ts";
 import { UpsourceApi } from "./lib/upsource.ts";
+
 const {
   authorization: upsourceAuth,
   host: upsourceHost,
   projectId: upsourceProjectId,
 } = secrets;
+
+async function getJira() {
+  return await new BrowserClientFactory().create();
+}
 
 await runCommands({
   recent: async ({ i, a, b, n }) => {
@@ -45,8 +50,7 @@ await runCommands({
     await print(output);
   },
   status: async () => {
-    const jiraFactory = new BrowserClientFactory();
-    const jira = await jiraFactory.create();
+    const jira = await getJira();
     const issues = await jira.fetchAllIssues(BrowserClient.JQL_MY_UNRESOLVED);
     console.log(JSON.stringify(
       issues
@@ -93,7 +97,10 @@ await runCommands({
         ),
       );
     } else {
+      const jira = await getJira();
+      const title = issue + " " + await jira.getIssueSummary(issue);
       review = await upsourceApi.createReview({
+        title,
         revisions,
         branch: `${issue}#${gitlabProject}`,
         projectId: upsourceProjectId,

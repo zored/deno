@@ -35,6 +35,7 @@ interface ReviewId {
 }
 
 interface CreateReviewRequest {
+  title?: string;
   projectId: string;
   revisions?: string[];
   branch?: string;
