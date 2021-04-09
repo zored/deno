@@ -71,7 +71,7 @@ const jiraAuthPath = () => join(env("HOME") ?? ".", "jira-auth.json");
 export class BrowserClientFactory {
   create = async () => {
     const auth = {
-      host: this.getHost() ?? "",
+      host: BrowserClientFactory.getHost() ?? "",
       cookies: env("JIRA_COOKIES") ?? "",
     };
 
@@ -89,7 +89,7 @@ export class BrowserClientFactory {
     return new BrowserClient(auth.host, auth.cookies);
   };
 
-  getHost() {
+  static getHost() {
     return env("JIRA_HOST");
   }
 }
@@ -160,7 +160,7 @@ export class BrowserClient {
   public static JQL_TOUCHED_BY_ME =
     "assignee = currentUser() or assignee was currentUser() and updated > startOfMonth(-1) order by updated desc";
   public static JQL_MY_UNRESOLVED =
-    "assignee = currentUser() AND resolution = Unresolved order by updated DESC";
+    "assignee = currentUser() AND resolution = Unresolved AND status != Done order by updated DESC";
 
   constructor(private readonly host: string, private readonly cookie: string) {
     this.host = this.host.replace(/\/+$/, "");
@@ -251,7 +251,6 @@ export class BrowserClient {
         console.log(`fetching ${startIndex}...`);
       }
       const response = await this.issueTable(jql, startIndex);
-      console.log(response);
       const { table, pageSize } = response.issueTable;
       const done = table.length < pageSize;
       issues.push(...table);

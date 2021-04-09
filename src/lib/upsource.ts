@@ -21,7 +21,7 @@ interface ReviewList {
   totalCount: number;
 }
 
-interface ReviewDescriptor {
+export interface ReviewDescriptor {
   reviewId: ReviewId;
   title: string;
   completionRate: CompletionRateDTO;
@@ -50,6 +50,13 @@ interface RevisionsInReview {
 
 interface VoidMessage {}
 
+export interface Err {
+  error: {
+    code: number;
+    message: string;
+  };
+}
+
 // https://upsource.jetbrains.com/~api_doc/reference/Service.html#messages.UpsourceRPC
 export class UpsourceApi {
   constructor(private host: string, private authorizationHeader: string) {
@@ -62,7 +69,7 @@ export class UpsourceApi {
   addRevisionToReview = async (dto: RevisionsInReview) =>
     this.rpc<VoidMessage>("addRevisionToReview", dto);
 
-  async rpc<T>(name: string, body: object): Promise<T> {
+  async rpc<T>(name: string, body: object): Promise<T | Err> {
     return await (await fetch(`${this.host}/~rpc/${name}`, {
       method: "POST",
       headers: {
