@@ -48,7 +48,7 @@ interface RevisionsInReview {
   revisionId: string;
 }
 
-interface VoidMessage {}
+export interface VoidMessage {}
 
 export interface Err {
   error: {
