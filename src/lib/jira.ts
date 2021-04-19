@@ -6,8 +6,8 @@ const { writeTextFile, readTextFile, env: { get: env } } = Deno;
 export type IssueKey = string;
 
 export interface ITableIssue {
-  id: IssueKey;
-  key: string;
+  id: number;
+  key: IssueKey;
   status: string;
   summary: string;
   type: {

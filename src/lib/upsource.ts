@@ -10,21 +10,47 @@ interface Resulting<T> {
   result: T;
 }
 
-interface CompletionRateDTO {
+interface CompletionRate {
   completedCount: number;
   reviewersCount: number;
   hasConcern: boolean;
 }
+
 interface ReviewList {
   reviews: ReviewDescriptor[] | undefined;
   hasMore: boolean;
   totalCount: number;
 }
 
+interface CurrentUserResponse {
+  userId: string;
+}
+
+interface ParticipantInReview {
+  userId: string;
+  state?: ParticipantState;
+  role: RoleInReview;
+}
+
+export enum RoleInReview {
+  Author = 1,
+  Reviewer,
+  Watcher,
+}
+
+export enum ParticipantState {
+  Unread = 1,
+  Read,
+  Accepted,
+  Rejected,
+}
+
 export interface ReviewDescriptor {
   reviewId: ReviewId;
   title: string;
-  completionRate: CompletionRateDTO;
+  completionRate: CompletionRate;
+  participants: ParticipantInReview[];
+  createdBy: string;
   updatedAt: number;
   isUnread: boolean;
 }
@@ -48,7 +74,8 @@ interface RevisionsInReview {
   revisionId: string;
 }
 
-export interface VoidMessage {}
+export interface VoidMessage {
+}
 
 export interface Err {
   error: {
@@ -68,6 +95,8 @@ export class UpsourceApi {
     this.rpc<ReviewDescriptor>("createReview", dto);
   addRevisionToReview = async (dto: RevisionsInReview) =>
     this.rpc<VoidMessage>("addRevisionToReview", dto);
+  getCurrentUser = async () =>
+    this.rpc<Resulting<CurrentUserResponse>>("getCurrentUser", {});
 
   async rpc<T>(name: string, body: object): Promise<T | Err> {
     return await (await fetch(`${this.host}/~rpc/${name}`, {

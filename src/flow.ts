@@ -58,7 +58,7 @@ await runCommands({
     const issues = await jira.fetchAllIssues(BrowserClient.JQL_MY_UNRESOLVED);
     console.log(JSON.stringify(
       issues
-        .sort(({ id: a }, { id: b }) => a - b)
+        .sort((a, b) => a.id - b.id)
         .map(({ key, status, summary }) => ({
           key,
           url: BrowserClientFactory.getHost() + "/browse/" + key,
@@ -115,7 +115,9 @@ await runCommands({
         );
         const alreadyExistErrors = responses
           .filter((v): v is Err => !!(v as Err).error)
-          .filter((v) => v.error.code === 1001);
+          .filter((v) =>
+            v.error.message.includes("because it is already part of ReviewId")
+          );
         const successResponses = responses.filter((v): v is VoidMessage =>
           !(v as Err).error
         );
@@ -129,7 +131,7 @@ await runCommands({
         }
 
         console.log(JSON.stringify(responses));
-        await sleepMs(3000);
+        await sleepMs(5000);
       }
     } else {
       const jira = await getJira();
@@ -153,7 +155,7 @@ await runCommands({
         }
 
         console.log({ reviewResponse });
-        await sleepMs(3000);
+        await sleepMs(5000);
       }
     }
 
