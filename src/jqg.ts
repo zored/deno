@@ -156,8 +156,8 @@ namespace JsonMatcher {
   }
 
   function pathToString(p: Path): string {
-    return "." +
-      p.map((k) => Number.isNaN(parseInt(k + "")) ? k : `[${k}]`).join(".");
+    return p.map((k) => Number.isNaN(parseInt(k + "")) ? `.${k}` : `[${k}]`)
+      .join("");
   }
 
   export function match(o: any, vs: MatchVisitor[]): Info[] {
