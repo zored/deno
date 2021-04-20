@@ -9,7 +9,12 @@ import { GitClient } from "./lib/git.ts";
 import { CliSelect } from "./lib/unstable-command.ts";
 import { IssueCacherFactory } from "./lib/jira.ts";
 import { secrets } from "./rob-only-upsource.ts";
-import { Err, UpsourceApi, VoidMessage } from "./lib/upsource.ts";
+import {
+  Err,
+  ReviewDescriptor,
+  UpsourceApi,
+  VoidMessage,
+} from "./lib/upsource.ts";
 
 const {
   authorization: upsourceAuth,
@@ -82,31 +87,34 @@ await runCommands({
     }
 
     const upsourceApi = new UpsourceApi(upsourceHost, upsourceAuth);
-    const reviewsResponse = await upsourceApi.getReviews({
-      limit: 100,
-      query: `${issue}`,
-    });
 
-    const isErr = function <T>(e: T | Err): e is Err {
-      return !!(e as unknown as Err).error;
-    };
-
-    if (isErr(reviewsResponse)) {
-      throw new Error(
-        `Reviews retrival error: ${reviewsResponse.error.message}`,
-      );
-    }
-
-    const reviews = reviewsResponse.result.reviews || [];
-    let review = reviews.find((r) => r.title.includes(issue));
-
-    let responses: Err[] = [];
+    let responses: any[] = [];
     let action = "create";
-    if (review) {
-      action = "update";
-      const { reviewId } = review;
-      while (true) {
-        const responses = await Promise.all(
+    let review: ReviewDescriptor | undefined;
+
+    while (true) {
+      const reviewsResponse = await upsourceApi.getReviews({
+        limit: 100,
+        query: `${issue}`,
+      });
+
+      const isErr = function <T>(e: T | Err): e is Err {
+        return !!(e as unknown as Err).error;
+      };
+
+      if (isErr(reviewsResponse)) {
+        throw new Error(
+          `Reviews retrival error: ${reviewsResponse.error.message}`,
+        );
+      }
+
+      const reviews = reviewsResponse.result.reviews || [];
+      review = reviews.find((r) => r.title.includes(issue));
+
+      if (review) {
+        action = "update";
+        const { reviewId } = review;
+        responses = await Promise.all(
           revisions
             .map((r) => `${gitlabProject}-${r}`)
             .map((revisionId) =>
@@ -132,33 +140,32 @@ await runCommands({
 
         console.log(JSON.stringify(responses));
         await sleepMs(5000);
+        continue;
       }
-    } else {
+
       const jira = await getJira();
       const title = issue + " " + await jira.getIssueSummary(issue);
 
-      while (true) {
-        const reviewResponse = await upsourceApi.createReview({
-          title,
-          revisions,
-          branch: `${issue}#${gitlabProject}`,
-          projectId: upsourceProjectId,
-        });
-        if (!isErr(reviewResponse)) {
-          review = reviewResponse;
-          break;
-        }
-        if (reviewResponse.error.code !== 106) { // Branch not found
-          throw new Error(
-            `Review creation error: ${(reviewResponse.error.message)}`,
-          );
-        }
-
-        console.log({ reviewResponse });
-        await sleepMs(5000);
+      const reviewResponse = await upsourceApi.createReview({
+        title,
+        revisions,
+        branch: `${issue}#${gitlabProject}`,
+        projectId: upsourceProjectId,
+      });
+      responses = [reviewResponse];
+      if (!isErr(reviewResponse)) {
+        review = reviewResponse;
+        break;
       }
-    }
+      if (reviewResponse.error.code !== 106) { // Branch not found
+        throw new Error(
+          `Review creation error: ${(reviewResponse.error.message)}`,
+        );
+      }
 
+      console.log({ reviewResponse });
+      await sleepMs(5000);
+    }
     console.log(JSON.stringify({ review, revisions, responses, action }));
   },
 });
