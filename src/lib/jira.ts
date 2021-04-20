@@ -1,7 +1,8 @@
 import { join, serve } from "../../deps.ts";
 import { parseQuery, QueryObject } from "./url.ts";
+import { loadDefault } from "./configs.ts";
 
-const { writeTextFile, readTextFile, env: { get: env } } = Deno;
+const { writeTextFile, readTextFileSync, env: { get: env } } = Deno;
 
 export type IssueKey = string;
 
@@ -21,11 +22,13 @@ interface ITableIssueCache {
 }
 
 export class IssueCacherFactory {
-  fromEnv = async (client?: BrowserClient) =>
-    new IssuesCacher(
-      client ?? await new BrowserClientFactory().create(),
-      new Repo((env("HOME") ?? ".") + "/jira-issues.json"),
+  create(client?: BrowserClient): IssuesCacher {
+    const clientFactory = BrowserClientFactory.get();
+    return new IssuesCacher(
+      client ?? clientFactory.create(),
+      new Repo(clientFactory.getIssuesPath()),
     );
+  }
 }
 
 export class JiraCookieListener {
@@ -40,7 +43,7 @@ export class JiraCookieListener {
       );
 
       const auth: { cookies: string } = JSON.parse(
-        await Deno.readTextFile(jiraAuthPath()),
+        readTextFileSync(jiraAuthPath()),
       );
       auth.cookies = cookies;
       Deno.writeTextFileSync(jiraAuthPath(), JSON.stringify(auth));
@@ -69,28 +72,36 @@ const debug = (
 const jiraAuthPath = () => join(env("HOME") ?? ".", "jira-auth.json");
 
 export class BrowserClientFactory {
-  create = async () => {
-    const auth = {
-      host: BrowserClientFactory.getHost() ?? "",
-      cookies: env("JIRA_COOKIES") ?? "",
-    };
+  private static instance?: BrowserClientFactory;
+  private readonly host: string;
+  private readonly cookies: string;
+  private readonly issuesPath: string;
 
-    try {
-      const file = JSON.parse(
-        await readTextFile(jiraAuthPath()),
+  private constructor(c: any) {
+    this.host = c.host;
+    this.cookies = c.cookies;
+    this.issuesPath = c.issuesPath;
+  }
+
+  static get(): BrowserClientFactory {
+    if (!BrowserClientFactory.instance) {
+      BrowserClientFactory.instance = new BrowserClientFactory(
+        loadDefault("jira"),
       );
-      auth.host = file.host || auth.host;
-      auth.cookies = file.cookies || auth.cookies;
-    } catch (e) {
-      debug((l) => l(`could not open ${jiraAuthPath()}`, { e }));
-      // That is ok.
     }
+    return BrowserClientFactory.instance;
+  }
 
-    return new BrowserClient(auth.host, auth.cookies);
-  };
+  create(): BrowserClient {
+    return new BrowserClient(this.host as string, this.cookies as string);
+  }
 
-  static getHost() {
-    return env("JIRA_HOST");
+  getHost() {
+    return this.host;
+  }
+
+  getIssuesPath() {
+    return this.issuesPath;
   }
 }
 
@@ -260,6 +271,28 @@ export class BrowserClient {
       startIndex += pageSize;
     }
     return issues;
+  }
+
+  async getIssueSummary(key: IssueKey) {
+    const f = "summary";
+    return (await this.getIssueFields(key, [f])).fields[f];
+  }
+
+  getIssueFields(key: IssueKey, fields: string[]): Promise<any> {
+    return this.json(
+      this.get(
+        `/rest/agile/1.0/issue/${key}?fields=${fields.join(",")}`,
+        {},
+        false,
+      ),
+    );
+  }
+
+  async fetchSimple(method: string, path: string) {
+    const request = method === "get"
+      ? this.get(path, {}, false)
+      : this.post(path, null, true);
+    return await this.json(request);
   }
 
   private issueTable = async (jql: string, startIndex = 0) =>
@@ -433,12 +466,6 @@ export class BrowserClient {
 
   private getPaths = async <T>(issue: IssueKey): Promise<string[]> =>
     this.getHtmlPaths(await this.getIssueHtml(issue));
-
-  getIssueSummary = async (key: IssueKey) =>
-    (await this.json(
-      this.get(`/rest/agile/1.0/issue/${key}?fields=summary`, {}, false),
-    ))
-      .fields.summary;
 }
 
 export class Repo {
@@ -473,7 +500,7 @@ export class Repo {
 
   private async loadCache(): Promise<ITableIssueCache> {
     try {
-      const cacheText = await readTextFile(this.path);
+      const cacheText = readTextFileSync(this.path);
       return JSON.parse(cacheText);
     } catch (e) {
       return this.newCache();

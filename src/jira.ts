@@ -11,8 +11,8 @@ import { QueryObject } from "./lib/url.ts";
 
 const { env: { get: env } } = Deno;
 
-const jira = await new BrowserClientFactory().create();
-const cache = await new IssueCacherFactory().fromEnv(jira);
+const jira = BrowserClientFactory.get().create();
+const cache = new IssueCacherFactory().create(jira);
 const one = (a: CommandArgs) => cache.one(a._[0] + "", a.field || "summary");
 
 new Commands({
@@ -38,4 +38,7 @@ new Commands({
   },
   listenCookies: ({ _: [number] }) =>
     new JiraCookieListener().start(parseInt(number + "")),
+  async fetch({ _: [method, path] }) {
+    console.log(JSON.stringify(await jira.fetchSimple(method + "", path + "")));
+  },
 }).runAndExit();

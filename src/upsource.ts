@@ -1,46 +1,34 @@
 #!/usr/bin/env deno run -A
-import { secrets } from "./rob-only-upsource.ts";
-import { Err, ParticipantState, UpsourceApi } from "./lib/upsource.ts";
+import {
+  createUpsourceApi,
+  ParticipantState,
+  ReviewDescriptor,
+  UpsourceService,
+} from "./lib/upsource.ts";
 import { Commands } from "./lib/command.ts";
 
-const { authorization, host } = secrets;
-
-const api = new UpsourceApi(host, authorization);
+const api = createUpsourceApi();
+const upsource = new UpsourceService(api);
 
 await new Commands({
   toReview: async ({ _: [path] }) => {
-    const isErr = function <T>(e: T | Err): e is Err {
-      return !!(e as unknown as Err).error;
-    };
-    const currentUserResponse = (await api.getCurrentUser());
-    if (isErr(currentUserResponse)) {
-      throw new Error("No current user found.");
-    }
-    const myId = currentUserResponse.result.userId;
-
+    const myId = await upsource.getMyId();
     console.log(JSON.stringify(
-      (await Promise.all([
-        "reviewer",
-        "author",
-      ].map((me) =>
-        api.getReviews({
-          limit: 100,
-          query: `state: open and ${me}: me`,
-        })
-      )))
-        .flatMap((r) => (r.result.reviews || []))
+      ((await upsource.getAllMyReviews()).result.reviews || [])
         .sort((a, b) => a.updatedAt - b.updatedAt)
-        .map((r) => [
-          r,
-          r.createdBy === myId
-            ? !r.completionRate.hasConcern
-            : r.participants.find((p) =>
-              p.userId === myId && [
-                ParticipantState.Accepted,
-                ParticipantState.Rejected,
-              ].includes(p.state)
-            ) !== null,
-        ])
+        .map((r) =>
+          [
+            r,
+            r.createdBy === myId
+              ? !r.completionRate.hasConcern
+              : r.participants.find((p) =>
+                p.userId === myId && p.state && [
+                  ParticipantState.Accepted,
+                  ParticipantState.Rejected,
+                ].includes(p.state)
+              ) !== null,
+          ] as [ReviewDescriptor, boolean]
+        )
         .map(([r, completed]) => ({
           url:
             `https://upsource.kube.ec.devmail.ru/${r.reviewId.projectId}/review/${r.reviewId.reviewId}`,

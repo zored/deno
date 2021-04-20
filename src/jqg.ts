@@ -163,15 +163,21 @@ namespace JsonMatcher {
       this.needle = this.withCase(this.needle);
     }
 
-    check = (v: Scalar) => this.withCase(v + "").includes(this.needle);
+    check(v: Scalar) {
+      return this.withCase(v + "").includes(this.needle);
+    }
 
-    private withCase = (s: string) => this.insensitive ? s.toLowerCase() : s;
+    private withCase(s: string) {
+      return this.insensitive ? s.toLowerCase() : s;
+    }
   }
 
   export class Regexp implements Checker {
     constructor(private readonly r: RegExp) {}
 
-    check = (v: Scalar) => this.r.test(v + "");
+    check(v: Scalar) {
+      return this.r.test(v + "");
+    }
   }
 
   export class ValueVisitor extends BaseVisitor implements MatchVisitor {
@@ -182,7 +188,9 @@ namespace JsonMatcher {
       super();
     }
 
-    getMatches = () => this.matches;
+    getMatches() {
+      return this.matches;
+    }
 
     protected async visitScalar(v: Scalar, p: Path): Promise<void> {
       if (!this.checker.check(v)) {
@@ -200,7 +208,9 @@ namespace JsonMatcher {
       super();
     }
 
-    getMatches = () => this.matches;
+    getMatches() {
+      return this.matches;
+    }
 
     protected async visitScalar(v: Scalar, p: Path): Promise<void> {
       this.matchPath(p, v);

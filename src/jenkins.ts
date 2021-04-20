@@ -1,17 +1,19 @@
 #!/usr/bin/env deno run -A
 import { JenkinsApi, JenkinsApiInfo } from "./lib/jenkins.ts";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
-import { secrets } from "./rob-only-jenkins.ts";
+import { loadDefault } from "./lib/configs.ts";
+import { parse } from "../deps.ts";
 
+const secrets = loadDefault("jenkins");
 const promptSecret = (message: string) =>
   new Promise<string>((r) => r(secrets.password));
 
-const { job, jobParams, host, login, cookiePath, buildId, nodeId1, nodeId2 } =
-  secrets;
+const { job, jobParams, host, login, cookiePath, buildId, nodeId } = secrets;
+
 const build = { job, buildId };
 
 const main = async () => {
-  switch (Deno.args[0]) {
+  switch (parse(Deno.args)._[0]) {
     case "build":
       const queueItemId = await api.buildWithParameters(job, jobParams);
       console.log(await api.getQueueItem(queueItemId));
@@ -21,14 +23,14 @@ const main = async () => {
       break;
     case "pipeline-node-steps":
       console.log(
-        JSON.stringify(await api.pipelineNodeSteps({ build, nodeId: nodeId1 })),
+        JSON.stringify(await api.pipelineNodeSteps({ build, nodeId })),
       );
       break;
     case "pipeline-node-log":
       console.log(
         await api.pipelineNodeLog({
           build,
-          nodeId: nodeId1,
+          nodeId,
         }),
       );
       break;
