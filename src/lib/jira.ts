@@ -107,7 +107,7 @@ export class IssuesCacher {
       return;
     }
     const issues = await this.api.fetchAllIssues(
-      BrowserClient.JQL_TOUCHED_BY_ME,
+      BrowserClient.JQL_LAST_VIEWED,
       true,
     );
     await this.repo.saveIssues(issues);
@@ -157,8 +157,8 @@ declare module JiraApi {
 }
 
 export class BrowserClient {
-  public static JQL_TOUCHED_BY_ME =
-    "assignee = currentUser() or assignee was currentUser() and updated > startOfMonth(-1) order by updated desc";
+  public static JQL_LAST_VIEWED =
+    "lastViewed is not empty order by lastViewed desc";
   public static JQL_MY_UNRESOLVED =
     "assignee = currentUser() AND resolution = Unresolved AND status != Done order by updated DESC";
 

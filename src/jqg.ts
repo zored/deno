@@ -7,6 +7,7 @@ async function main() {
     insensitive: boolean;
     keys: boolean;
     values: boolean;
+    text: boolean;
     contains?: string;
     regexp?: string;
     _: string[];
@@ -15,6 +16,7 @@ async function main() {
       "insensitive",
       "keys",
       "values",
+      "text",
     ],
     alias: {
       "insensitive": ["i"],
@@ -22,6 +24,7 @@ async function main() {
       "regexp": ["r"],
       "keys": ["k"],
       "values": ["v"],
+      "text": ["t"],
     },
     string: [
       "contains",
@@ -49,17 +52,23 @@ async function main() {
   if (!a.keys && !a.values) {
     a.values = true;
   }
-  console.log(JSON.stringify(
-    await JsonMatcher.match(
-      JSON.parse(getStdinSync({ exitOnEnter: false })),
-      checkers.flatMap((c) =>
-        [
-          a.keys ? [new JsonMatcher.KeyVisitor(c)] : [],
-          a.values ? [new JsonMatcher.ValueVisitor(c)] : [],
-        ].flat()
-      ),
+  const info = await JsonMatcher.match(
+    JSON.parse(getStdinSync({ exitOnEnter: false })),
+    checkers.flatMap((c) =>
+      [
+        a.keys ? [new JsonMatcher.KeyVisitor(c)] : [],
+        a.values ? [new JsonMatcher.ValueVisitor(c)] : [],
+      ].flat()
     ),
-  ));
+  );
+
+  if (a.text) {
+    console.log(
+      info.map((v) => `${v.type[0]} ${v.path} ${v.value}`).join("\n"),
+    );
+  } else {
+    console.log(JSON.stringify(info));
+  }
 }
 
 namespace JsonMatcher {
