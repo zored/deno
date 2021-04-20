@@ -3,12 +3,13 @@ import { getStdinSync } from "https://deno.land/x/get_stdin@v1.1.0/mod.ts";
 
 async function main() {
   const needle = Deno.args[0];
+  const contains = new JsonMatcher.Contains(needle, true);
   console.log(JSON.stringify(
-    JsonMatcher.match(
+    await JsonMatcher.match(
       JSON.parse(getStdinSync({ exitOnEnter: false })),
       [
-        new JsonMatcher.ValueVisitor(new JsonMatcher.Contains(needle)),
-        new JsonMatcher.KeyVisitor(new JsonMatcher.Contains(needle)),
+        new JsonMatcher.ValueVisitor(contains),
+        new JsonMatcher.KeyVisitor(contains),
       ],
     ),
   ));
@@ -18,7 +19,7 @@ namespace JsonMatcher {
   type Key = string | number;
   type Path = (Key)[];
 
-  type Scalar = number | string | boolean;
+  type Scalar = number | string | boolean | undefined | null;
 
   interface Info {
     path: string;
@@ -46,7 +47,7 @@ namespace JsonMatcher {
   }
 
   interface Visitor {
-    visit(v: any, p: Path): void;
+    visit(v: any, p: Path): Promise<void>;
   }
 
   interface MatchVisitor extends Visitor {
@@ -54,37 +55,43 @@ namespace JsonMatcher {
   }
 
   abstract class BaseVisitor implements Visitor {
-    visit(v: any, p: Path): void {
+    async visit(v: any, p: Path): Promise<void> {
       const t = typeof v;
-      if (["number", "string", "boolean"].includes(t)) {
-        this.visitScalar(v, p);
+      if (
+        ["number", "string", "boolean"].includes(t) || v === undefined ||
+        v === null
+      ) {
+        await this.visitScalar(v, p);
         return;
       }
+
       if (t === "object") {
-        this.visitObject(v, p);
+        await this.visitObject(v, p);
         return;
       }
 
       if (Array.isArray(v)) {
-        this.visitArray(v, p);
+        await this.visitArray(v, p);
         return;
       }
 
       throw new Error(`Undefined JSON value: ${JSON.stringify(v)}`);
     }
 
-    protected abstract visitScalar(v: Scalar, p: Path): void;
+    protected abstract visitScalar(v: Scalar, p: Path): Promise<void>;
 
-    protected visitArray(v: any[], p: Path): void {
-      v.forEach((k, vv) => this.visitKeyValue(vv, p, k));
+    protected async visitArray(v: any[], p: Path): Promise<void> {
+      await Promise.all(v.map((k, vv) => this.visitKeyValue(vv, p, k)));
     }
 
-    protected visitObject(v: object, p: Path): void {
-      Object.entries(v).forEach(([k, vv]) => this.visitKeyValue(vv, p, k));
+    protected async visitObject(v: object, p: Path): Promise<void> {
+      await Promise.all(
+        Object.entries(v).map(([k, vv]) => this.visitKeyValue(vv, p, k)),
+      );
     }
 
-    protected visitKeyValue(vv: any, p: Path, k: Key): void {
-      this.visit(vv, [...p, k]);
+    protected async visitKeyValue(vv: any, p: Path, k: Key): Promise<void> {
+      return this.visit(vv, [...p, k]);
     }
   }
 
@@ -115,7 +122,7 @@ namespace JsonMatcher {
 
     getMatches = () => this.matches;
 
-    protected visitScalar(v: Scalar, p: Path): void {
+    protected async visitScalar(v: Scalar, p: Path): Promise<void> {
       if (!this.checker.check(v)) {
         return;
       }
@@ -133,18 +140,18 @@ namespace JsonMatcher {
 
     getMatches = () => this.matches;
 
-    protected visitScalar(v: Scalar, p: Path): void {
+    protected async visitScalar(v: Scalar, p: Path): Promise<void> {
       this.matchPath(p, v);
     }
 
-    protected visitObject(v: object, p: Path): void {
+    protected async visitObject(v: object, p: Path): Promise<void> {
       this.matchPath(p, "{...}");
-      super.visitObject(v, p);
+      return super.visitObject(v, p);
     }
 
-    protected visitArray(v: any[], p: Path): void {
+    protected async visitArray(v: any[], p: Path): Promise<void> {
       this.matchPath(p, "[...]");
-      super.visitArray(v, p);
+      return super.visitArray(v, p);
     }
 
     private matchPath(p: Path, vv: Scalar): void {
@@ -160,11 +167,11 @@ namespace JsonMatcher {
       .join("");
   }
 
-  export function match(o: any, vs: MatchVisitor[]): Info[] {
-    return vs.flatMap((v) => {
+  export async function match(o: any, vs: MatchVisitor[]): Promise<Info[]> {
+    return (await Promise.all(vs.map((v) => {
       v.visit(o, []);
-      return v.getMatches().info();
-    });
+      return v;
+    }))).flatMap((v) => v.getMatches().info());
   }
 }
 
