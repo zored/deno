@@ -1,16 +1,63 @@
 #!/usr/bin/env deno run -A
 import { getStdinSync } from "https://deno.land/x/get_stdin@v1.1.0/mod.ts";
+import { parse } from "../deps.ts";
 
 async function main() {
-  const needle = Deno.args[0];
-  const contains = new JsonMatcher.Contains(needle, true);
+  const a: {
+    insensitive: boolean;
+    keys: boolean;
+    values: boolean;
+    contains?: string;
+    regexp?: string;
+    _: string[];
+  } = parse(Deno.args, {
+    boolean: [
+      "insensitive",
+      "keys",
+      "values",
+    ],
+    alias: {
+      "insensitive": ["i"],
+      "contains": ["c"],
+      "regexp": ["r"],
+      "keys": ["k"],
+      "values": ["v"],
+    },
+    string: [
+      "contains",
+      "regexp",
+    ],
+  }) as any;
+
+  // Checkers:
+  const checkers: JsonMatcher.Checker[] = [];
+  const insensitive = a.insensitive ?? false;
+  const contains = a.contains ?? a._[0];
+  if (contains !== undefined) {
+    checkers.push(new JsonMatcher.Contains(contains, insensitive));
+  }
+  if (a.regexp !== undefined) {
+    checkers.push(
+      new JsonMatcher.Regexp(new RegExp(a.regexp, insensitive ? "i" : "")),
+    );
+  }
+  if (checkers.length === 0) {
+    throw new Error("Specify --contains or --regexp!");
+  }
+
+  // Visitors:
+  if (!a.keys && !a.values) {
+    a.values = true;
+  }
   console.log(JSON.stringify(
     await JsonMatcher.match(
       JSON.parse(getStdinSync({ exitOnEnter: false })),
-      [
-        new JsonMatcher.ValueVisitor(contains),
-        new JsonMatcher.KeyVisitor(contains),
-      ],
+      checkers.flatMap((c) =>
+        [
+          a.keys ? [new JsonMatcher.KeyVisitor(c)] : [],
+          a.values ? [new JsonMatcher.ValueVisitor(c)] : [],
+        ].flat()
+      ),
     ),
   ));
 }
@@ -50,7 +97,7 @@ namespace JsonMatcher {
     visit(v: any, p: Path): Promise<void>;
   }
 
-  interface MatchVisitor extends Visitor {
+  export interface MatchVisitor extends Visitor {
     getMatches(): Matches;
   }
 
@@ -95,7 +142,7 @@ namespace JsonMatcher {
     }
   }
 
-  interface Checker {
+  export interface Checker {
     check(v: Scalar): boolean;
   }
 
@@ -110,6 +157,12 @@ namespace JsonMatcher {
     check = (v: Scalar) => this.withCase(v + "").includes(this.needle);
 
     private withCase = (s: string) => this.insensitive ? s.toLowerCase() : s;
+  }
+
+  export class Regexp implements Checker {
+    constructor(private readonly r: RegExp) {}
+
+    check = (v: Scalar) => this.r.test(v + "");
   }
 
   export class ValueVisitor extends BaseVisitor implements MatchVisitor {
