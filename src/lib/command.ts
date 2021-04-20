@@ -40,9 +40,10 @@ export class ProcessWrapper {
     return this;
   }
 
-  private getStatus = async () =>
-    this.status = this.status ??
+  private async getStatus() {
+    return this.status = this.status ??
       await this.process.status();
+  }
 }
 
 export class Runner implements IRunner {

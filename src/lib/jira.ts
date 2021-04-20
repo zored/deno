@@ -274,26 +274,30 @@ export class BrowserClient {
       }),
     ));
 
-  private init = (form = true): RequestInit => ({
-    "headers": {
-      "__amdmodulename": "jira/issue/utils/xsrf-token-header",
-      "accept": "application/json",
-      "accept-language": "en,ru-RU;q=0.9,ru;q=0.8",
-      "sec-fetch-dest": "empty",
-      "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin",
-      "x-atlassian-token": "no-check",
-      "x-requested-with": "XMLHttpRequest",
-      "cookie": this.cookie,
-      ...(form
-        ? { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" }
-        : {}),
-    },
-    "referrer": `${this.host}/`,
-    "referrerPolicy": "no-referrer-when-downgrade",
-    "method": "POST",
-    "mode": "cors",
-  });
+  private init(form = true): RequestInit {
+    return {
+      "headers": {
+        "__amdmodulename": "jira/issue/utils/xsrf-token-header",
+        "accept": "application/json",
+        "accept-language": "en,ru-RU;q=0.9,ru;q=0.8",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "x-atlassian-token": "no-check",
+        "x-requested-with": "XMLHttpRequest",
+        "cookie": this.cookie,
+        ...(form
+          ? {
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+          }
+          : {}),
+      },
+      "referrer": `${this.host}/`,
+      "referrerPolicy": "no-referrer-when-downgrade",
+      "method": "POST",
+      "mode": "cors",
+    };
+  }
 
   private getIssueId = (paths: string[], key: IssueKey) => {
     const path = this.findAddCommentPath(paths, key);
@@ -377,18 +381,19 @@ export class BrowserClient {
       method: "GET",
     }, form);
 
-  private fetch = (
+  private fetch(
     path: string,
     init: Partial<RequestInit> = {},
     form = true,
-  ) =>
-    fetch(
+  ) {
+    return fetch(
       `${this.host}/${path.replace(/^\//, "")}`,
       {
         ...this.init(form),
         ...init,
       },
     );
+  }
 
   private json = async (p: Promise<Response>) => {
     const response = await p;

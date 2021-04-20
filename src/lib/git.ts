@@ -105,11 +105,15 @@ export class GitClient {
       .filter(({ from }) => from !== undefined);
   }
 
-  getUntracked = async () => this.api.getUntracked();
+  async getUntracked() {
+    return this.api.getUntracked();
+  }
 
   lastVersion = async () => await this.getLastVersion();
 
-  pushNewTag = (tag: string) => this.api.pushNewTag(tag);
+  pushNewTag(tag: string) {
+    return this.api.pushNewTag(tag);
+  }
 
   async getCurrentBranchHashes(): Promise<string[]> {
     const branch = await this.api.getCurrentBranch();
@@ -122,10 +126,13 @@ export class GitClient {
     return this.api.getCurrentBranch();
   }
 
-  private getLastVersion = async (): Promise<SemVer> =>
-    new SemVer(await this.api.lastTag());
+  private async getLastVersion(): Promise<SemVer> {
+    return new SemVer(await this.api.lastTag());
+  }
 
-  getOriginUrl = () => this.api.getRemoteUrl("origin");
+  getOriginUrl() {
+    return this.api.getRemoteUrl("origin");
+  }
 }
 
 export class MessageBuilder {

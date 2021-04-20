@@ -64,16 +64,16 @@ export class GitPaths {
     this.root = this.root.replace(/\/$/, "");
   }
 
-  getPathByUrl = (url: string): string | undefined => {
+  getPathByUrl(url: string): string | undefined {
     const parts = this.matcher.matchUrl(url);
     if (!parts) {
       return undefined;
     }
     const { domain, project, path } = parts;
     return `${this.root}/${domain}/${project}/${path}`;
-  };
+  }
 
-  getOriginByPath = (inputPath: string, ssh: boolean): string | undefined => {
+  getOriginByPath(inputPath: string, ssh: boolean): string | undefined {
     if (inputPath.indexOf(this.root) !== 0) {
       return undefined;
     }
@@ -85,14 +85,15 @@ export class GitPaths {
     return ssh
       ? `git@${domain}:${project}/${path}.git`
       : `https://${domain}/${project}/${path}`;
-  };
+  }
 
-  getOptions = (query: string) =>
-    DirsMethods.getLeafs(
+  getOptions(query: string) {
+    return DirsMethods.getLeafs(
       this.fs.getDirs(this.root, maxDepth),
       this.root,
       (name: Name) => name.toLowerCase().indexOf(query.toLowerCase()) > -1,
     );
+  }
 }
 
 class DirsMethods {

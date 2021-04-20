@@ -147,8 +147,9 @@ export class ProxyRunner {
     return csa;
   };
 
-  private execOrTty = async (cs: CommandBuilder) =>
-    this.retrieveOutput ? this.exec(cs) : this.tty(cs);
+  private async execOrTty(cs: CommandBuilder) {
+    return this.retrieveOutput ? this.exec(cs) : this.tty(cs);
+  }
 
   private log(cs: CommandBuilder, force = false) {
     if (force || this.debug) {
