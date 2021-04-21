@@ -12,7 +12,9 @@ import { IssueCacherFactory } from "./lib/jira.ts";
 import {
   createUpsourceApi,
   Err,
+  Resulting,
   ReviewDescriptor,
+  RevisionsInReviewResponse,
   UpsourceError,
   UpsourceService,
   VoidMessage,
@@ -35,7 +37,7 @@ function getGit(): GitClient {
 function getIssueKeyFromCommitMessage(m: string): IssueKey | null {
   const matches = m.match(/^\s*(\w+-\d+).*/);
   if (matches) {
-    return matches[0];
+    return matches[1];
   }
 
   return null;
@@ -69,45 +71,94 @@ await runCommands({
   },
 
   async status() {
-    const jira = getJira();
-    const issues = await jira.fetchAllIssues(
-      BrowserClient.JQL_MY_UNRESOLVED,
+    const jira = getJira(),
+      upsourceApi = createUpsourceApi(),
+      upsource = new UpsourceService(upsourceApi);
+
+    const reviews = (await upsource.getAllMyReviews()).result.reviews || [];
+    const revisionsForReview = await Promise.all(
+      reviews.map((r) => upsourceApi.getRevisionsInReview(r.reviewId)),
     );
 
-    const issueKeysFromActiveIssues = issues.map((s) => s.key);
-
-    const upsourceApi = createUpsourceApi();
-    const upsource = new UpsourceService(upsourceApi);
-    const myReviews = (await upsource.getAllMyReviews()).result.reviews || [];
-    const revisions = (await Promise.all(myReviews.map((r) =>
-      upsourceApi.getRevisionsInReview(r.reviewId)
-    ))).flat();
-    const issueKeysFromRevisions = revisions.flatMap((r) =>
-      r.result.allRevisions.revision
-    )
-      .map((r) =>
-        getIssueKeyFromCommitMessage(r.revisionCommitMessage)
-      )
-      .filter((k): k is IssueKey => k !== null);
-
-    const issueKeys = new Set([
-      ...issueKeysFromActiveIssues,
-      ...issueKeysFromRevisions,
-    ]);
-
-    Array.from(issueKeys).map((k) =>
-      jira.getIssueFields(k, ["status", "summary", "parent", ""])
-    );
+    Deno.writeTextFileSync("rob-only.json", JSON.stringify(revisionsForReview));
+    const automatedInfoField = "customfield_54419";
 
     console.log(JSON.stringify(
-      issues
-        .sort((a, b) => a.id - b.id)
-        .map(({ key, status, summary }) => ({
-          key,
-          url: getJiraIssueUrl(key),
-          status,
-          summary,
-        })),
+      (await Promise.all(
+        Array.from(
+          new Set([
+            ...((await jira.fetchAllIssues(
+              BrowserClient.JQL_MY_UNRESOLVED,
+            )).map((issue) => issue.key)),
+            ...(revisionsForReview.flat().flatMap((
+              r: Resulting<RevisionsInReviewResponse>,
+            ) => r.result.allRevisions.revision)
+              .map((r) => getIssueKeyFromCommitMessage(r.revisionCommitMessage))
+              .filter((k): k is IssueKey => k !== null)),
+          ]),
+        ).map((k) => {
+          return jira.getIssueFields(k, [
+            "status",
+            "summary",
+            "parent",
+            "lastViewed",
+            "assignee",
+            automatedInfoField,
+          ]);
+        }),
+      ))
+        .sort((a, b) =>
+          (new Date(b.fields.lastViewed)).getTime() -
+          (new Date(a.fields.lastViewed)).getTime()
+        )
+        .map((v) => {
+          let parent = null;
+          if (v.fields.parent) {
+            const {
+              key,
+              fields: {
+                summary,
+                status: { name: status },
+                issuetype: { name: issuetype },
+              },
+            } = v.fields.parent;
+            parent = {
+              key,
+              summary,
+              url: getJiraIssueUrl(key),
+              status,
+              issuetype,
+            };
+          }
+
+          const {
+            key,
+            fields: {
+              summary,
+              status: { name: status },
+              assignee: { displayName: assignee },
+              [automatedInfoField]: automatedInfo,
+            },
+          } = v;
+
+          const r: any = {
+            key,
+            summary,
+            url: getJiraIssueUrl(key),
+            status,
+            assignee,
+          };
+
+          if (!(automatedInfo || "").includes("Result: Success")) {
+            r.automatedError = automatedInfo;
+          }
+
+          if (parent) {
+            r.parent = parent;
+          }
+
+          return r;
+        }),
     ));
   },
 
@@ -166,7 +217,7 @@ await runCommands({
         }
 
         console.log(JSON.stringify(responses));
-        await sleepMs(5000);
+        await sleepMs(10000);
         continue;
       }
 
@@ -181,11 +232,8 @@ await runCommands({
         if (!(e instanceof UpsourceError)) {
           throw e;
         }
-        if (e.code !== UpsourceError.CODE_BRANCH_NOT_FOUND) {
-          throw new Error(`Review creation error: ${(e.message)}`);
-        }
         console.error({ e });
-        await sleepMs(5000);
+        await sleepMs(10000);
         continue;
       }
       responses = [reviewResponse];

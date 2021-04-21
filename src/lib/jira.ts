@@ -32,21 +32,23 @@ export class IssueCacherFactory {
 }
 
 export class JiraCookieListener {
-  async start(port: number) {
+  async start(port: number, path: string) {
     if (!port) {
       throw new Error("specify port");
     }
-    console.log(`Listening port ${port} for Jira cookies...`);
+    console.log(
+      `Listening port ${port} for Jira cookies to save in ${path}...`,
+    );
     for await (const request of serve({ port })) {
       const cookies = new TextDecoder().decode(
         await Deno.readAll(request.body),
       );
 
-      const auth: { cookies: string } = JSON.parse(
-        readTextFileSync(jiraAuthPath()),
+      const auth: { jira: { cookies: string } } = JSON.parse(
+        readTextFileSync(path),
       );
-      auth.cookies = cookies;
-      Deno.writeTextFileSync(jiraAuthPath(), JSON.stringify(auth));
+      auth.jira.cookies = cookies;
+      Deno.writeTextFileSync(path, JSON.stringify(auth));
       console.log("wrote cookies");
 
       request.respond({
@@ -68,8 +70,6 @@ const debug = (
     f(console.log);
   }
 };
-
-const jiraAuthPath = () => join(env("HOME") ?? ".", "jira-auth.json");
 
 export class BrowserClientFactory {
   private static instance?: BrowserClientFactory;

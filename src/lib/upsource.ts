@@ -8,7 +8,7 @@ interface ReviewsRequest {
   skip?: number;
 }
 
-interface Resulting<T> {
+export interface Resulting<T> {
   result: T;
 }
 
@@ -40,7 +40,7 @@ interface RevisionInfo {
 interface RevisionDescriptorList {
   revision: RevisionInfo[];
 }
-interface RevisionsInReviewResponse {
+export interface RevisionsInReviewResponse {
   allRevisions: RevisionDescriptorList;
   canSquash: boolean;
 }
@@ -167,7 +167,7 @@ export class UpsourceApi {
   getCurrentUser = async () =>
     this.rpc<Resulting<CurrentUserResponse>>("getCurrentUser", {});
   getRevisionsInReview = async (dto: ReviewId) =>
-    this.rpc<Resulting<RevisionsInReviewResponse>>("getCurrentUser", {});
+    this.rpc<Resulting<RevisionsInReviewResponse>>("getRevisionsInReview", dto);
 
   async rpc<T>(name: string, body: object): Promise<T> {
     const response: T | Err = await (await fetch(`${this.host}/~rpc/${name}`, {
@@ -202,6 +202,6 @@ export class UpsourceError extends Error {
   }
 
   get message() {
-    return `Upsource error: ${this.e.error.code} ${this.e.error.message}`;
+    return `Upsource error #${this.e.error.code}: ${this.e.error.message}`;
   }
 }

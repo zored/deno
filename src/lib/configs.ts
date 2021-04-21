@@ -45,6 +45,7 @@ class ArgConfigLoader implements ConfigLoader {
       Deno.args
         .filter((a) => a.startsWith(prefix))
         .map((a) => a.substring(prefix.length))
+        .map((s) => s.endsWith(".json") ? Deno.readTextFileSync(s) : s)
         .map((s) => JSON.parse(s)),
     );
   }

@@ -36,8 +36,8 @@ new Commands({
       await jira.createIssue(query),
     );
   },
-  listenCookies: ({ _: [number] }) =>
-    new JiraCookieListener().start(parseInt(number + "")),
+  listenCookies: ({ _: [number, path] }) =>
+    new JiraCookieListener().start(parseInt(number + ""), path + ""),
   async fetch({ _: [method, path] }) {
     console.log(JSON.stringify(await jira.fetchSimple(method + "", path + "")));
   },
