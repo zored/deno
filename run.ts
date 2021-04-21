@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run -A
+#!/usr/bin/env deno run --no-check -A
 import { Args } from "./deps.ts";
 import { assertAllTracked, Commands, GitHooks, Runner, sh } from "./mod.ts";
 

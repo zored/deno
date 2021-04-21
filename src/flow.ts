@@ -109,37 +109,34 @@ await runCommands({
       }, {} as Record<IssueKey, Review[]>);
 
     const automatedInfoField = "customfield_54419";
+    const lastViewed = (a: any): number =>
+      (new Date(a.fields.lastViewed)).getTime();
 
     console.log(JSON.stringify(
-      (await Promise.all(
+      await Promise.all(
         (await Promise.all(
-          Array.from(
-            new Set([
+          [
+            ...new Set<IssueKey>([
               ...((await jira.fetchAllIssues(
                 BrowserClient.JQL_MY_UNRESOLVED,
               )).map((issue) => issue.key)),
-              ...(reviewsWithKeys
-                .flatMap(([, k]) => Array.from(k))
-                .reduce((keys, key) => keys.add(key), new Set<IssueKey>())),
+              ...reviewsWithKeys.flatMap(([, k]) => [...k]),
             ]),
-          ).map((k) => {
-            return jira.getIssueFields(k, [
+          ].map((key) =>
+            jira.getIssueFields(key, [
               "status",
               "summary",
               "parent",
               "lastViewed",
               "assignee",
               automatedInfoField,
-            ]);
-          }),
+            ])
+          ),
         ))
-          .sort((a, b) =>
-            (new Date(b.fields.lastViewed)).getTime() -
-            (new Date(a.fields.lastViewed)).getTime()
-          )
-          .map(async (v) => {
+          .sort((a, b) => lastViewed(a) - lastViewed(b))
+          .map(async (t) => {
             let parent = null;
-            if (v.fields.parent) {
+            if (t.fields.parent) {
               const {
                 key,
                 fields: {
@@ -147,7 +144,7 @@ await runCommands({
                   status: { name: status },
                   issuetype: { name: issuetype },
                 },
-              } = v.fields.parent;
+              } = t.fields.parent;
               parent = {
                 key,
                 summary,
@@ -165,7 +162,7 @@ await runCommands({
                 assignee: { displayName: assignee },
                 [automatedInfoField]: automatedInfo,
               },
-            } = v;
+            } = t;
 
             const issue: any = {
               key,
@@ -191,7 +188,7 @@ await runCommands({
             }
             return r;
           }),
-      )),
+      ),
     ));
   },
 
