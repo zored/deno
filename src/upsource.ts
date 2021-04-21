@@ -2,44 +2,21 @@
 import {
   createUpsourceApi,
   ParticipantState,
-  ReviewDescriptor,
+  Review,
   UpsourceService,
 } from "./lib/upsource.ts";
 import { Commands } from "./lib/command.ts";
+import { loadDefault } from "./lib/configs.ts";
 
 const api = createUpsourceApi();
 const upsource = new UpsourceService(api);
 
 await new Commands({
   toReview: async ({ _: [path] }) => {
-    const myId = await upsource.getMyId();
     console.log(JSON.stringify(
-      ((await upsource.getAllMyReviews()).result.reviews || [])
-        .sort((a, b) => a.updatedAt - b.updatedAt)
-        .map((r) =>
-          [
-            r,
-            r.createdBy === myId
-              ? !r.completionRate.hasConcern
-              : r.participants.find((p) =>
-                p.userId === myId && p.state && [
-                  ParticipantState.Accepted,
-                  ParticipantState.Rejected,
-                ].includes(p.state)
-              ) !== null,
-          ] as [ReviewDescriptor, boolean]
-        )
-        .map(([r, completed]) => ({
-          url:
-            `https://upsource.kube.ec.devmail.ru/${r.reviewId.projectId}/review/${r.reviewId.reviewId}`,
-          updatedAt: (new Date(r.updatedAt)).toLocaleString("ru-RU", {
-            timeZone: "Europe/Moscow",
-          }),
-          unread: r.isUnread,
-          concern: r.completionRate.hasConcern,
-          myBranch: r.createdBy === myId,
-          completed,
-        })),
+      await upsource.output(
+        (await upsource.getAllMyReviews()).result.reviews || [],
+      ),
     ));
   },
   fetch: async ({ _: [name, body] }) =>

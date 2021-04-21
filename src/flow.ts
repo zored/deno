@@ -11,9 +11,8 @@ import { CliSelect } from "./lib/unstable-command.ts";
 import { IssueCacherFactory } from "./lib/jira.ts";
 import {
   createUpsourceApi,
-  Err,
   Resulting,
-  ReviewDescriptor,
+  Review,
   RevisionsInReviewResponse,
   UpsourceError,
   UpsourceService,
@@ -21,6 +20,7 @@ import {
 } from "./lib/upsource.ts";
 import { sleepMs } from "./lib/utils.ts";
 import { loadDefault } from "./lib/configs.ts";
+import { fromPairs, zip } from "../deps.ts";
 
 function getJiraIssueUrl(key: IssueKey): string {
   return BrowserClientFactory.get().getHost() + "/browse/" + key;
@@ -80,85 +80,118 @@ await runCommands({
       reviews.map((r) => upsourceApi.getRevisionsInReview(r.reviewId)),
     );
 
-    Deno.writeTextFileSync("rob-only.json", JSON.stringify(revisionsForReview));
+    const reviewsWithKeys: [Review, Set<IssueKey>][] =
+      (zip(reviews, revisionsForReview) as [
+        Review,
+        Resulting<RevisionsInReviewResponse>,
+      ][])
+        .map(([review, revisions]) =>
+          [
+            review,
+            new Set(
+              revisions.result.allRevisions.revision
+                .map((r) =>
+                  getIssueKeyFromCommitMessage(r.revisionCommitMessage)
+                ).filter((s) => s !== null),
+            ),
+          ] as [Review, Set<IssueKey>]
+        );
+
+    const reviewsByKey = reviewsWithKeys
+      .flatMap(([review, keys]) =>
+        Array.from(keys).map((k) => [k, review] as [IssueKey, Review])
+      )
+      .reduce((all, [k, r]) => {
+        const reviews = all[k] ?? [];
+        reviews.push(r);
+        all[k] = reviews;
+        return all;
+      }, {} as Record<IssueKey, Review[]>);
+
     const automatedInfoField = "customfield_54419";
 
     console.log(JSON.stringify(
       (await Promise.all(
-        Array.from(
-          new Set([
-            ...((await jira.fetchAllIssues(
-              BrowserClient.JQL_MY_UNRESOLVED,
-            )).map((issue) => issue.key)),
-            ...(revisionsForReview.flat().flatMap((
-              r: Resulting<RevisionsInReviewResponse>,
-            ) => r.result.allRevisions.revision)
-              .map((r) => getIssueKeyFromCommitMessage(r.revisionCommitMessage))
-              .filter((k): k is IssueKey => k !== null)),
-          ]),
-        ).map((k) => {
-          return jira.getIssueFields(k, [
-            "status",
-            "summary",
-            "parent",
-            "lastViewed",
-            "assignee",
-            automatedInfoField,
-          ]);
-        }),
-      ))
-        .sort((a, b) =>
-          (new Date(b.fields.lastViewed)).getTime() -
-          (new Date(a.fields.lastViewed)).getTime()
-        )
-        .map((v) => {
-          let parent = null;
-          if (v.fields.parent) {
+        (await Promise.all(
+          Array.from(
+            new Set([
+              ...((await jira.fetchAllIssues(
+                BrowserClient.JQL_MY_UNRESOLVED,
+              )).map((issue) => issue.key)),
+              ...(reviewsWithKeys
+                .flatMap(([, k]) => Array.from(k))
+                .reduce((keys, key) => keys.add(key), new Set<IssueKey>())),
+            ]),
+          ).map((k) => {
+            return jira.getIssueFields(k, [
+              "status",
+              "summary",
+              "parent",
+              "lastViewed",
+              "assignee",
+              automatedInfoField,
+            ]);
+          }),
+        ))
+          .sort((a, b) =>
+            (new Date(b.fields.lastViewed)).getTime() -
+            (new Date(a.fields.lastViewed)).getTime()
+          )
+          .map(async (v) => {
+            let parent = null;
+            if (v.fields.parent) {
+              const {
+                key,
+                fields: {
+                  summary,
+                  status: { name: status },
+                  issuetype: { name: issuetype },
+                },
+              } = v.fields.parent;
+              parent = {
+                key,
+                summary,
+                url: getJiraIssueUrl(key),
+                status,
+                issuetype,
+              };
+            }
+
             const {
               key,
               fields: {
                 summary,
                 status: { name: status },
-                issuetype: { name: issuetype },
+                assignee: { displayName: assignee },
+                [automatedInfoField]: automatedInfo,
               },
-            } = v.fields.parent;
-            parent = {
+            } = v;
+
+            const issue: any = {
               key,
               summary,
               url: getJiraIssueUrl(key),
               status,
-              issuetype,
+              assignee,
             };
-          }
 
-          const {
-            key,
-            fields: {
-              summary,
-              status: { name: status },
-              assignee: { displayName: assignee },
-              [automatedInfoField]: automatedInfo,
-            },
-          } = v;
+            if (!(automatedInfo || "").includes("Result: Success")) {
+              issue.automatedError = automatedInfo;
+            }
 
-          const r: any = {
-            key,
-            summary,
-            url: getJiraIssueUrl(key),
-            status,
-            assignee,
-          };
+            if (parent) {
+              issue.parent = parent;
+            }
 
-          if (!(automatedInfo || "").includes("Result: Success")) {
-            r.automatedError = automatedInfo;
-          }
+            const r: any = { issue };
 
-          if (parent) {
-            r.parent = parent;
-          }
-
-          return r;
-        }),
+            const reviews = reviewsByKey[key];
+            if (reviews && reviews.length > 0) {
+              r.reviews = await upsource.output(reviews);
+            }
+            return r;
+          }),
+      )),
     ));
   },
 
@@ -178,7 +211,7 @@ await runCommands({
     const upsource = createUpsourceApi();
     let responses: any[] = [];
     let action = "create";
-    let review: ReviewDescriptor | undefined;
+    let review: Review | undefined;
 
     while (true) {
       const reviewsResponse = await upsource.getReviews({
@@ -186,7 +219,7 @@ await runCommands({
         query: `${issueKey}`,
       });
 
-      const reviews: ReviewDescriptor[] = reviewsResponse.result.reviews || [];
+      const reviews: Review[] = reviewsResponse.result.reviews || [];
       review = reviews.find((r) => r.title.includes(issueKey));
 
       if (review) {
@@ -223,7 +256,7 @@ await runCommands({
         continue;
       }
 
-      let reviewResponse: ReviewDescriptor;
+      let reviewResponse: Review;
       try {
         reviewResponse = await upsource.createReview({
           revisions,

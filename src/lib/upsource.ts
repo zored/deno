@@ -19,7 +19,7 @@ interface CompletionRate {
 }
 
 interface ReviewList {
-  reviews: ReviewDescriptor[] | undefined;
+  reviews: Review[] | undefined;
   hasMore: boolean;
   totalCount: number;
 }
@@ -64,7 +64,7 @@ export enum ParticipantState {
   Rejected,
 }
 
-export interface ReviewDescriptor {
+export interface Review {
   reviewId: ReviewId;
   title: string; // unused while creation!
   completionRate: CompletionRate;
@@ -116,11 +116,13 @@ export interface Err {
 }
 
 export class UpsourceService {
+  private myId?: string;
   constructor(private api: UpsourceApi) {
   }
 
   async getMyId(): Promise<string> {
-    return (await this.api.getCurrentUser()).result.userId;
+    return this.myId = this.myId ??
+      (await this.api.getCurrentUser()).result.userId;
   }
 
   async getAllMyReviews(limit = 100) {
@@ -139,6 +141,36 @@ export class UpsourceService {
       query: `state: open and ${me}: me`,
     });
   }
+
+  async output(reviews: Review[]) {
+    const myId = await this.getMyId();
+    return reviews
+      .sort((a, b) => a.updatedAt - b.updatedAt)
+      .map((r) =>
+        [
+          r,
+          r.createdBy === myId
+            ? !r.completionRate.hasConcern
+            : r.participants.find((p) =>
+              p.userId === myId && p.state && [
+                ParticipantState.Accepted,
+                ParticipantState.Rejected,
+              ].includes(p.state)
+            ) !== null,
+        ] as [Review, boolean]
+      )
+      .map(([r, completed]) => ({
+        url:
+          `${this.api.host}/${r.reviewId.projectId}/review/${r.reviewId.reviewId}`,
+        updatedAt: (new Date(r.updatedAt)).toLocaleString("ru-RU", {
+          timeZone: "Europe/Moscow",
+        }),
+        unread: r.isUnread,
+        concern: r.completionRate.hasConcern,
+        myBranch: r.createdBy === myId,
+        completed,
+      }));
+  }
 }
 
 export function createUpsourceApi() {
@@ -149,7 +181,7 @@ export function createUpsourceApi() {
 // https://upsource.jetbrains.com/~api_doc/reference/Service.html#messages.UpsourceRPC
 export class UpsourceApi {
   constructor(
-    private host: string,
+    public host: string,
     private authorizationHeader: string,
   ) {
   }
@@ -157,7 +189,7 @@ export class UpsourceApi {
   getReviews = async (dto: ReviewsRequest = { limit: 10 }) =>
     this.rpc<Resulting<ReviewList>>("getReviews", dto);
   createReview = async (dto: CreateReviewRequest) =>
-    this.rpc<ReviewDescriptor>("createReview", dto);
+    this.rpc<Review>("createReview", dto);
   renameReview = async (dto: RenameReviewRequest) =>
     this.rpc<RenameReviewResponse>("renameReview", dto);
   editReviewDescription = async (dto: EditReviewDescriptionRequest) =>
