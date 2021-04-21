@@ -196,16 +196,18 @@ await runCommands({
           revisions
             .map((r) => `${gitlabProject}-${r}`)
             .map((revisionId) =>
-              upsource.addRevisionToReview({ reviewId, revisionId })
+              upsource.addRevisionToReview({ reviewId, revisionId }).catch((
+                e: UpsourceError,
+              ) => e)
             ),
         );
         const alreadyExistErrors = responses
-          .filter((v): v is Err => !!(v as Err).error)
-          .filter((v) =>
-            v.error.message.includes("because it is already part of ReviewId")
+          .filter((v): v is UpsourceError => v instanceof UpsourceError)
+          .filter((e) =>
+            e.message.includes("because it is already part of ReviewId")
           );
         const successResponses = responses.filter((v): v is VoidMessage =>
-          !(v as Err).error
+          !(v instanceof UpsourceError)
         );
 
         if (
@@ -216,7 +218,7 @@ await runCommands({
           break;
         }
 
-        console.log(JSON.stringify(responses));
+        console.error(JSON.stringify(responses));
         await sleepMs(10000);
         continue;
       }
