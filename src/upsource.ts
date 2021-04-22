@@ -6,7 +6,7 @@ import {
   UpsourceService,
 } from "./lib/upsource.ts";
 import { Commands } from "./lib/command.ts";
-import { loadDefault } from "./lib/configs.ts";
+import { load } from "./lib/configs.ts";
 
 const api = createUpsourceApi();
 const upsource = new UpsourceService(api);

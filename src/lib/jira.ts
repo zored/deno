@@ -1,6 +1,6 @@
 import { join, serve } from "../../deps.ts";
 import { parseQuery, QueryObject } from "./url.ts";
-import { loadDefault } from "./configs.ts";
+import { load } from "./configs.ts";
 
 const { writeTextFile, readTextFileSync, env: { get: env } } = Deno;
 
@@ -73,20 +73,25 @@ const debug = (
 
 export class BrowserClientFactory {
   private static instance?: BrowserClientFactory;
-  private readonly host: string;
-  private readonly cookies: string;
-  private readonly issuesPath: string;
 
-  private constructor(c: any) {
-    this.host = c.host;
-    this.cookies = c.cookies;
-    this.issuesPath = c.issuesPath;
+  private constructor(
+    private readonly host: string,
+    private readonly cookies: string,
+    private readonly issuesPath: string,
+  ) {
   }
 
   static get(): BrowserClientFactory {
     if (!BrowserClientFactory.instance) {
+      const c = load<{
+        host: string;
+        cookies: string;
+        issuesPath: string;
+      }>("jira");
       BrowserClientFactory.instance = new BrowserClientFactory(
-        loadDefault("jira"),
+        c.host,
+        c.cookies,
+        c.issuesPath,
       );
     }
     return BrowserClientFactory.instance;

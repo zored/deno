@@ -1,9 +1,9 @@
 #!/usr/bin/env deno run -A
 
 import { Commands } from "./lib/command.ts";
-import { EnvGitlabApiFactory } from "./lib/gitlab.ts";
+import { ConfigGitlabApiFactory } from "./lib/gitlab.ts";
 
-const gitlabApi = (new EnvGitlabApiFactory()).create();
+const gitlabApi = (new ConfigGitlabApiFactory()).create();
 await new Commands({
   groups: async ({ _: [path] }) =>
     console.log(JSON.stringify(await gitlabApi.groups(path + ""))),

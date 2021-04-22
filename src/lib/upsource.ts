@@ -1,6 +1,6 @@
-import { loadDefault } from "./configs.ts";
+import { load } from "./configs.ts";
 
-interface ReviewsRequest {
+export interface ReviewsRequest {
   limit: number;
   query?: string;
   sortBy?: string;
@@ -12,23 +12,23 @@ export interface Resulting<T> {
   result: T;
 }
 
-interface CompletionRate {
+export interface CompletionRate {
   completedCount: number;
   reviewersCount: number;
   hasConcern: boolean;
 }
 
-interface ReviewList {
+export interface ReviewList {
   reviews: Review[] | undefined;
   hasMore: boolean;
   totalCount: number;
 }
 
-interface CurrentUserResponse {
+export interface CurrentUserResponse {
   userId: string;
 }
 
-interface RevisionInfo {
+export interface RevisionInfo {
   projectId: string;
   revisionId: string;
   revisionCommitMessage: string;
@@ -37,15 +37,16 @@ interface RevisionInfo {
   parentRevisionIds: string[];
 }
 
-interface RevisionDescriptorList {
+export interface RevisionDescriptorList {
   revision: RevisionInfo[];
 }
+
 export interface RevisionsInReviewResponse {
   allRevisions: RevisionDescriptorList;
   canSquash: boolean;
 }
 
-interface ParticipantInReview {
+export interface ParticipantInReview {
   userId: string;
   state?: ParticipantState;
   role: RoleInReview;
@@ -86,12 +87,15 @@ export interface RenameReviewResponse {
 export type EditReviewDescriptionRequest = RenameReviewRequest;
 export type EditReviewDescriptionResponse = RenameReviewResponse;
 
-interface ReviewId {
+export interface ProjectId {
+  projectId: string;
+}
+export interface ReviewId {
   projectId: string;
   reviewId: string;
 }
 
-interface CreateReviewRequest {
+export interface CreateReviewRequest {
   title?: string;
   projectId: string;
   revisions?: string[];
@@ -100,7 +104,7 @@ interface CreateReviewRequest {
   mergeToBranch?: string;
 }
 
-interface RevisionsInReview {
+export interface RevisionsInReview {
   reviewId: ReviewId;
   revisionId: string;
 }
@@ -115,8 +119,18 @@ export interface Err {
   };
 }
 
+export interface VscRepo {
+  id: string;
+  url: string[];
+}
+
+export interface VcsRepoList {
+  repo: VscRepo[];
+}
+
 export class UpsourceService {
   private myId?: string;
+
   constructor(private api: UpsourceApi) {
   }
 
@@ -132,6 +146,28 @@ export class UpsourceService {
     });
   }
 
+  async output(reviews: Review[]) {
+    const myId = await this.getMyId();
+    return reviews
+      .sort((a, b) => a.updatedAt - b.updatedAt)
+      .map((r) => ({
+        url:
+          `${this.api.host}/${r.reviewId.projectId}/review/${r.reviewId.reviewId}`,
+        updatedAt: (new Date(r.updatedAt)).toLocaleString("ru-RU", {
+          timeZone: "Europe/Moscow",
+        }),
+        myBranch: r.createdBy === myId,
+        completed: r.createdBy === myId
+          ? r.isUnread || !r.completionRate.hasConcern
+          : r.participants.some((p) =>
+            p.userId === myId && p.state && [
+              ParticipantState.Accepted,
+              ParticipantState.Rejected,
+            ].includes(p.state)
+          ),
+      }));
+  }
+
   private async getMyReviews(
     { author = false, limit = 100 },
   ): Promise<Err | Resulting<ReviewList>> {
@@ -141,41 +177,11 @@ export class UpsourceService {
       query: `state: open and ${me}: me`,
     });
   }
-
-  async output(reviews: Review[]) {
-    const myId = await this.getMyId();
-    return reviews
-      .sort((a, b) => a.updatedAt - b.updatedAt)
-      .map((r) =>
-        [
-          r,
-          r.createdBy === myId
-            ? !r.completionRate.hasConcern
-            : r.participants.find((p) =>
-              p.userId === myId && p.state && [
-                ParticipantState.Accepted,
-                ParticipantState.Rejected,
-              ].includes(p.state)
-            ) !== null,
-        ] as [Review, boolean]
-      )
-      .map(([r, completed]) => ({
-        url:
-          `${this.api.host}/${r.reviewId.projectId}/review/${r.reviewId.reviewId}`,
-        updatedAt: (new Date(r.updatedAt)).toLocaleString("ru-RU", {
-          timeZone: "Europe/Moscow",
-        }),
-        unread: r.isUnread,
-        concern: r.completionRate.hasConcern,
-        myBranch: r.createdBy === myId,
-        completed,
-      }));
-  }
 }
 
 export function createUpsourceApi() {
-  const { authorization, host } = loadDefault("upsource") as any;
-  return new UpsourceApi(host, authorization);
+  const c = load<{ authorization: string; host: string }>("upsource");
+  return new UpsourceApi(c.host, c.authorization);
 }
 
 // https://upsource.jetbrains.com/~api_doc/reference/Service.html#messages.UpsourceRPC
@@ -186,20 +192,47 @@ export class UpsourceApi {
   ) {
   }
 
-  getReviews = async (dto: ReviewsRequest = { limit: 10 }) =>
-    this.rpc<Resulting<ReviewList>>("getReviews", dto);
-  createReview = async (dto: CreateReviewRequest) =>
-    this.rpc<Review>("createReview", dto);
-  renameReview = async (dto: RenameReviewRequest) =>
-    this.rpc<RenameReviewResponse>("renameReview", dto);
-  editReviewDescription = async (dto: EditReviewDescriptionRequest) =>
-    this.rpc<EditReviewDescriptionResponse>("editReviewDescription", dto);
-  addRevisionToReview = async (dto: RevisionsInReview) =>
-    this.rpc<VoidMessage>("addRevisionToReview", dto);
-  getCurrentUser = async () =>
-    this.rpc<Resulting<CurrentUserResponse>>("getCurrentUser", {});
-  getRevisionsInReview = async (dto: ReviewId) =>
-    this.rpc<Resulting<RevisionsInReviewResponse>>("getRevisionsInReview", dto);
+  private static isErr<T>(e: T | Err): e is Err {
+    return !!(e as unknown as Err).error;
+  }
+
+  async getReviews(dto: ReviewsRequest = { limit: 10 }) {
+    return this.rpc<Resulting<ReviewList>>("getReviews", dto);
+  }
+
+  async createReview(dto: CreateReviewRequest) {
+    return this.rpc<Review>("createReview", dto);
+  }
+
+  async renameReview(dto: RenameReviewRequest) {
+    return this.rpc<RenameReviewResponse>("renameReview", dto);
+  }
+
+  async editReviewDescription(dto: EditReviewDescriptionRequest) {
+    return this.rpc<EditReviewDescriptionResponse>(
+      "editReviewDescription",
+      dto,
+    );
+  }
+
+  async addRevisionToReview(dto: RevisionsInReview) {
+    return this.rpc<VoidMessage>("addRevisionToReview", dto);
+  }
+
+  async getCurrentUser() {
+    return this.rpc<Resulting<CurrentUserResponse>>("getCurrentUser", {});
+  }
+
+  async getRevisionsInReview(dto: ReviewId) {
+    return this.rpc<Resulting<RevisionsInReviewResponse>>(
+      "getRevisionsInReview",
+      dto,
+    );
+  }
+
+  async getProjectVcsLinks(dto: ProjectId) {
+    return this.rpc<Resulting<VcsRepoList>>("getProjectVcsLinks", dto);
+  }
 
   async rpc<T>(name: string, body: object): Promise<T> {
     const response: T | Err = await (await fetch(`${this.host}/~rpc/${name}`, {
@@ -215,10 +248,6 @@ export class UpsourceApi {
     }
 
     return response;
-  }
-
-  private static isErr<T>(e: T | Err): e is Err {
-    return !!(e as unknown as Err).error;
   }
 }
 

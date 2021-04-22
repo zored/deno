@@ -51,7 +51,7 @@ class ArgConfigLoader implements ConfigLoader {
   }
 }
 
-export function loadDefault(jsonPath: string): object {
+export function load<T = any>(jsonPath: string): T {
   const l: ConfigLoader = new SearchConfigLoader(
     new MergeConfigLoader([
       new ArgConfigLoader("zored-deno"),
@@ -59,5 +59,5 @@ export function loadDefault(jsonPath: string): object {
     ]),
     jsonPath,
   );
-  return l.load();
+  return l.load() as any as T;
 }

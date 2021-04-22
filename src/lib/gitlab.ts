@@ -1,6 +1,8 @@
 import { merge } from "../../deps.ts";
+import { load } from "./configs.ts";
+import { parseQuery } from "./url.ts";
 
-type ProjectId = number | string;
+export type ProjectId = number | string;
 
 interface Pipeline {
   id: number;
@@ -21,8 +23,11 @@ export class GitlabApi {
   ) {
   }
 
-  getPipelines = async (p: ProjectId): Promise<Pipeline[]> =>
-    this.fetch(`projects/${this.project(p)}/pipelines`);
+  getPipelines = async (
+    p: ProjectId,
+    params: { ref?: string; per_page?: number; page?: number } = {},
+  ): Promise<Pipeline[]> =>
+    this.fetch(`projects/${this.project(p)}/pipelines?${parseQuery(params)}`);
 
   groups = async (p: ProjectId) => this.fetch(`groups/${this.project(p)}/`);
 
@@ -44,12 +49,10 @@ export class GitlabApi {
 export interface GitlabApiFactory {
   create(): GitlabApi;
 }
-export class EnvGitlabApiFactory implements GitlabApiFactory {
+
+export class ConfigGitlabApiFactory implements GitlabApiFactory {
   create(): GitlabApi {
-    const env = (name: string): string => Deno.env.get(name) || "";
-    return new GitlabApi(
-      env("GITLAB_HOST"),
-      env("GITLAB_TOKEN"),
-    );
+    const c = load<{ host: string; token: string }>("gitlab");
+    return new GitlabApi(c.host, c.token);
   }
 }

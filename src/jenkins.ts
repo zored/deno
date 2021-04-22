@@ -1,10 +1,18 @@
 #!/usr/bin/env deno run -A
 import { JenkinsApi, JenkinsApiInfo } from "./lib/jenkins.ts";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
-import { loadDefault } from "./lib/configs.ts";
+import { load } from "./lib/configs.ts";
 import { parse } from "../deps.ts";
 
-const secrets = loadDefault("jenkins");
+const secrets = load<{
+  job: string;
+  jobParams: string;
+  host: string;
+  login: string;
+  cookiePath: string;
+  buildId: string;
+  nodeId: string;
+}>("jenkins");
 const promptSecret = (message: string) =>
   new Promise<string>((r) => r(secrets.password));
 

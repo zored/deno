@@ -13,14 +13,17 @@ import {
   createUpsourceApi,
   Resulting,
   Review,
+  ReviewId,
+  RevisionInfo,
   RevisionsInReviewResponse,
   UpsourceError,
   UpsourceService,
   VoidMessage,
 } from "./lib/upsource.ts";
-import { sleepMs } from "./lib/utils.ts";
-import { loadDefault } from "./lib/configs.ts";
+import { fromPairsArray, sleepMs } from "./lib/utils.ts";
+import { load } from "./lib/configs.ts";
 import { fromPairs, zip } from "../deps.ts";
+import { ConfigGitlabApiFactory, GitlabApi, ProjectId } from "./lib/gitlab.ts";
 
 function getJiraIssueUrl(key: IssueKey): string {
   return BrowserClientFactory.get().getHost() + "/browse/" + key;
@@ -30,17 +33,40 @@ function getJira(): BrowserClient {
   return BrowserClientFactory.get().create();
 }
 
+function getGitlab(): GitlabApi {
+  return (new ConfigGitlabApiFactory()).create();
+}
+
 function getGit(): GitClient {
   return new GitClient();
 }
 
-function getIssueKeyFromCommitMessage(m: string): IssueKey | null {
-  const matches = m.match(/^\s*(\w+-\d+).*/);
-  if (matches) {
-    return matches[1];
+function getIssueKeyFromCommitMessage(c: string): IssueKey | null {
+  const m = c.match(/^\s*(\w+-\d+).*/);
+  if (!m) {
+    return null;
   }
+  return m[1];
+}
 
-  return null;
+function getProjectIdFromRevisionId(r: string): string | null {
+  const m = r.match(/^(.+)-.{40}$/);
+  if (!m) {
+    return null;
+  }
+  return m[1];
+}
+
+function getStringReviewId(r: ReviewId): string {
+  return `${r.projectId}-${r.projectId}`;
+}
+
+function getGitlabProjectFromVcsUrl(p: string): string | null {
+  const m = p.match(/.*:(.*)\.git$/);
+  if (!m) {
+    return null;
+  }
+  return m[1];
 }
 
 await runCommands({
@@ -71,7 +97,8 @@ await runCommands({
   },
 
   async status() {
-    const jira = getJira(),
+    const gitlab = getGitlab(),
+      jira = getJira(),
       upsourceApi = createUpsourceApi(),
       upsource = new UpsourceService(upsourceApi);
 
@@ -80,33 +107,55 @@ await runCommands({
       reviews.map((r) => upsourceApi.getRevisionsInReview(r.reviewId)),
     );
 
-    const reviewsWithKeys: [Review, Set<IssueKey>][] =
-      (zip(reviews, revisionsForReview) as [
-        Review,
-        Resulting<RevisionsInReviewResponse>,
-      ][])
-        .map(([review, revisions]) =>
-          [
-            review,
-            new Set(
-              revisions.result.allRevisions.revision
-                .map((r) =>
-                  getIssueKeyFromCommitMessage(r.revisionCommitMessage)
-                ).filter((s) => s !== null),
-            ),
-          ] as [Review, Set<IssueKey>]
-        );
+    const reviewsWithRevisions = (zip(reviews, revisionsForReview) as [
+      Review,
+      Resulting<RevisionsInReviewResponse>,
+    ][]).map(([review, revisions]) =>
+      [
+        review,
+        revisions.result.allRevisions.revision,
+      ] as [Review, RevisionInfo[]]
+    );
 
-    const reviewsByKey = reviewsWithKeys
-      .flatMap(([review, keys]) =>
-        Array.from(keys).map((k) => [k, review] as [IssueKey, Review])
-      )
-      .reduce((all, [k, r]) => {
-        const reviews = all[k] ?? [];
-        reviews.push(r);
-        all[k] = reviews;
-        return all;
-      }, {} as Record<IssueKey, Review[]>);
+    const vcsRepoUrlByUpsourceProjectId: Record<string, string> = fromPairs(
+      (await upsourceApi.getProjectVcsLinks({
+        projectId: load<{ projectId: string }>("upsource").projectId,
+      })).result.repo.map((v) => [v.id, v.url[0]]),
+    );
+
+    const projectIdsByReviewId: Record<string, string[]> = fromPairsArray(
+      reviewsWithRevisions.flatMap(
+        ([review, revisions]) =>
+          revisions
+            .map((r) =>
+              [
+                getStringReviewId(review.reviewId),
+                getProjectIdFromRevisionId(r.revisionId),
+              ] as [string, string | null]
+            )
+            .filter((a): a is [string, string] => a[1] !== null),
+      ),
+      true,
+    );
+
+    const reviewsWithKeys: [Review, Set<IssueKey>][] = reviewsWithRevisions
+      .map(([review, revisions]) =>
+        [
+          review,
+          new Set(
+            revisions.map((r) =>
+              getIssueKeyFromCommitMessage(r.revisionCommitMessage)
+            ).filter((s) => s !== null),
+          ),
+        ] as [Review, Set<IssueKey>]
+      );
+
+    const reviewsByKey: Record<IssueKey, Review[]> = fromPairsArray(
+      reviewsWithKeys
+        .flatMap(([review, keys]) =>
+          Array.from(keys).map((k) => [k, review] as [IssueKey, Review])
+        ),
+    );
 
     const automatedInfoField = "customfield_54419";
     const lastViewed = (a: any): number =>
@@ -142,15 +191,12 @@ await runCommands({
                 fields: {
                   summary,
                   status: { name: status },
-                  issuetype: { name: issuetype },
                 },
               } = t.fields.parent;
               parent = {
-                key,
                 summary,
                 url: getJiraIssueUrl(key),
                 status,
-                issuetype,
               };
             }
 
@@ -165,14 +211,13 @@ await runCommands({
             } = t;
 
             const issue: any = {
-              key,
               summary,
               url: getJiraIssueUrl(key),
               status,
               assignee,
             };
 
-            if (!(automatedInfo || "").includes("Result: Success")) {
+            if (automatedInfo && !automatedInfo.includes("Result: Success")) {
               issue.automatedError = automatedInfo;
             }
 
@@ -185,6 +230,31 @@ await runCommands({
             const reviews = reviewsByKey[key];
             if (reviews && reviews.length > 0) {
               r.reviews = await upsource.output(reviews);
+              const ref = key;
+
+              const pipelines = (await Promise.all(
+                reviews
+                  .flatMap((r) =>
+                    projectIdsByReviewId[getStringReviewId(r.reviewId)] ?? []
+                  )
+                  .map((upsourceProjectId) =>
+                    vcsRepoUrlByUpsourceProjectId[upsourceProjectId]
+                  )
+                  .filter((v): v is string => !!v)
+                  .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl))
+                  .filter((p): p is string => p !== null)
+                  .map((p) =>
+                    gitlab.getPipelines(p, { ref, per_page: 1, page: 1 })
+                  ),
+              ))
+                .flat()
+                .map(({ status, web_url }) => ({
+                  status,
+                  web_url,
+                }));
+              if (pipelines.length) {
+                r.pipelines = pipelines;
+              }
             }
             return r;
           }),
@@ -258,7 +328,7 @@ await runCommands({
         reviewResponse = await upsource.createReview({
           revisions,
           branch: `${issueKey}#${gitlabProject}`,
-          projectId: (loadDefault("upsource") as any).projectId,
+          projectId: load<{ projectId: string }>("upsource").projectId,
         });
       } catch (e) {
         if (!(e instanceof UpsourceError)) {
@@ -270,17 +340,17 @@ await runCommands({
       }
       responses = [reviewResponse];
       review = reviewResponse;
-      const title = issueKey + " " +
-        await getJira().getIssueSummary(issueKey);
-      await upsource.renameReview({
-        reviewId: review.reviewId,
-        text: title,
-      });
-      const url = getJiraIssueUrl(issueKey);
-      await upsource.editReviewDescription({
-        reviewId: review.reviewId,
-        text: `[${title}](${url})`,
-      });
+      // const title = issueKey + " " +
+      //   await getJira().getIssueSummary(issueKey);
+      // await upsource.renameReview({
+      //   reviewId: review.reviewId,
+      //   text: title,
+      // });
+      // const url = getJiraIssueUrl(issueKey);
+      // await upsource.editReviewDescription({
+      //   reviewId: review.reviewId,
+      //   text: `[${title}](${url})`,
+      // });
       break;
     }
 
