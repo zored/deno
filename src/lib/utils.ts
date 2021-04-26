@@ -14,9 +14,37 @@ export function fromPairsArray<V, K extends string | number | symbol>(
   }, {} as Record<K, V[]>);
 
   if (set) {
-    Object.keys(result).forEach((k: K): void => {
-      result[k] = [...new Set(result[k])];
+    Object.keys(result).forEach((k): void => {
+      result[k as K] = [...new Set(result[k as K])];
     });
   }
   return result;
+}
+
+export function debugLog<T>(debugLog: T): T {
+  if (Deno.args.includes("-v")) {
+    console.error(JSON.stringify(debugLog));
+  }
+  return debugLog;
+}
+
+let requestId = 1;
+
+export async function myFetch(
+  input: RequestInfo,
+  init?: RequestInit,
+): Promise<Response> {
+  const response = await fetch(input, init);
+  const id = requestId++;
+  debugLog({ request: { id, input, init, response } });
+  // monkey patch:
+  ["text"].forEach((name) => {
+    const f = (response as any)[name];
+    (response as any)[name] = async () => {
+      const result = await f.call(response);
+      debugLog({ response: { id, [name]: result } });
+      return result;
+    };
+  });
+  return response;
 }

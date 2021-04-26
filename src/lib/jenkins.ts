@@ -1,4 +1,5 @@
 import { parseQuery, QueryObject } from "./url.ts";
+import { myFetch } from "./utils.ts";
 
 export interface JenkinsApiInfo {
   host: string;
@@ -125,16 +126,14 @@ export class JenkinsApi {
     headers: HeadersInit = {},
   ) => {
     await this.loginIfNeeded();
-    const url = `${this.info.host}/${path.replace(/^\//, "")}`;
-    const init = {
+    return myFetch(`${this.info.host}/${path.replace(/^\//, "")}`, {
       headers: {
         ...headers,
         ...this.getAuthHeaders(),
       },
       credential: "inline",
       ...request,
-    };
-    return fetch(url, init);
+    });
   };
 
   private getAuthHeaders = (): Record<string, string> => {

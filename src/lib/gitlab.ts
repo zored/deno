@@ -1,6 +1,7 @@
 import { merge } from "../../deps.ts";
 import { load } from "./configs.ts";
 import { parseQuery } from "./url.ts";
+import { myFetch } from "./utils.ts";
 
 export type ProjectId = number | string;
 
@@ -35,13 +36,13 @@ export class GitlabApi {
     typeof p === "number" ? p : encodeURIComponent(p);
 
   async fetch(path: string, init: RequestInit = {}) {
-    return await (await fetch(
+    return await (await myFetch(
       `${this.host}/api/v4/${path}`,
       merge({
         headers: {
           "private-token": this.token,
         },
-      }, init),
+      } as RequestInit, init),
     )).json();
   }
 }

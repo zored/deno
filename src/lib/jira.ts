@@ -1,6 +1,7 @@
-import { join, serve } from "../../deps.ts";
+import { parse, serve } from "../../deps.ts";
 import { parseQuery, QueryObject } from "./url.ts";
 import { load } from "./configs.ts";
+import { myFetch } from "./utils.ts";
 
 const { writeTextFile, readTextFileSync, env: { get: env } } = Deno;
 
@@ -60,16 +61,6 @@ export class JiraCookieListener {
     }
   }
 }
-
-const debug = (
-  f: (
-    l: (...p: Parameters<typeof console.log>) => ReturnType<typeof console.log>,
-  ) => void,
-) => {
-  if (Deno.args.includes("-v")) {
-    f(console.log);
-  }
-};
 
 export class BrowserClientFactory {
   private static instance?: BrowserClientFactory;
@@ -172,11 +163,24 @@ declare module JiraApi {
   }
 }
 
+export class JiraError implements Error {
+  constructor(private r: { errorMessages: string[]; errors: object }) {
+  }
+
+  get message() {
+    return this.r.errorMessages.join("\n");
+  }
+
+  get name() {
+    return "jira error";
+  }
+}
+
 export class BrowserClient {
   public static JQL_LAST_VIEWED =
     "lastViewed is not empty order by lastViewed desc";
-  public static JQL_MY_UNRESOLVED =
-    "assignee = currentUser() AND resolution = Unresolved AND status != Done order by updated DESC";
+  public static JQL_MY_UNRESOLVED_OR_ASSIGNED_TO_MERGE =
+    '(assignee = currentUser() AND resolution = Unresolved AND status != Done) OR (assignee was currentUser() and status = "To Merge") order by updated DESC';
 
   constructor(private readonly host: string, private readonly cookie: string) {
     this.host = this.host.replace(/\/+$/, "");
@@ -278,19 +282,45 @@ export class BrowserClient {
     return issues;
   }
 
-  async getIssueSummary(key: IssueKey) {
-    const f = "summary";
-    return (await this.getIssueFields(key, [f])).fields[f];
+  async findIssues(
+    {
+      jql = undefined as string | undefined,
+      fields = [] as string[],
+    },
+  ) {
+    return (await this.json(this.get(
+      `/rest/api/2/search?${
+        parseQuery({
+          jql: jql ? encodeURIComponent(jql) : undefined,
+          fields: fields.length === 0 ? undefined : fields.join(","),
+        })
+      }`,
+      {},
+      false,
+    ))).issues;
   }
 
-  getIssueFields(key: IssueKey, fields: string[]): Promise<any> {
+  getIssueFields(
+    key: IssueKey,
+    fields: string[],
+    expand: string[] = [],
+  ): Promise<any> {
     return this.json(
       this.get(
-        `/rest/agile/1.0/issue/${key}?fields=${fields.join(",")}`,
+        `/rest/agile/1.0/issue/${key}?${
+          parseQuery({
+            fields: fields.length > 0 ? fields.join(",") : undefined,
+            expand: expand.length > 0 ? expand.join(",") : undefined,
+          })
+        }`,
         {},
         false,
       ),
     );
+  }
+
+  async getCurrentUserName() {
+    return (await this.json(this.get(`/rest/auth/1/session`, {}, false))).name;
   }
 
   async fetchSimple(method: string, path: string) {
@@ -424,7 +454,7 @@ export class BrowserClient {
     init: Partial<RequestInit> = {},
     form = true,
   ) {
-    return fetch(
+    return myFetch(
       `${this.host}/${path.replace(/^\//, "")}`,
       {
         ...this.init(form),
@@ -433,13 +463,13 @@ export class BrowserClient {
     );
   }
 
-  private json = async (p: Promise<Response>) => {
-    const response = await p;
-    debug((l) => l(response));
-    const t = await response.text();
-    debug(() => console.log(t));
-    return JSON.parse(t);
-  };
+  private async json(p: Promise<Response>): Promise<any> {
+    const r = JSON.parse(await (await p).text());
+    if (r.errorMessages) {
+      throw new JiraError(r);
+    }
+    return r;
+  }
 
   private text = async (p: Promise<Response>) => (await p).text();
 

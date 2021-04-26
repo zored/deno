@@ -1,4 +1,5 @@
 import { load } from "./configs.ts";
+import { myFetch } from "./utils.ts";
 
 export interface ReviewsRequest {
   limit: number;
@@ -31,10 +32,17 @@ export interface CurrentUserResponse {
 export interface RevisionInfo {
   projectId: string;
   revisionId: string;
+  reachability: number;
   revisionCommitMessage: string;
   vcsRevisionId: string;
   tags: string[];
   parentRevisionIds: string[];
+}
+
+export enum RevisionReachability {
+  Reachable = 1,
+  Unknown,
+  NotReachable,
 }
 
 export interface RevisionDescriptorList {
@@ -90,6 +98,7 @@ export type EditReviewDescriptionResponse = RenameReviewResponse;
 export interface ProjectId {
   projectId: string;
 }
+
 export interface ReviewId {
   projectId: string;
   reviewId: string;
@@ -139,10 +148,10 @@ export class UpsourceService {
       (await this.api.getCurrentUser()).result.userId;
   }
 
-  async getAllMyReviews(limit = 100) {
+  async getAllMyReviews({ filter = "", limit = 100, onlyOpen = true } = {}) {
     return this.api.getReviews({
       limit,
-      query: `state: open and (reviewer: me or author: me)`,
+      query: `(state: open and (reviewer: me or author: me)) ${filter}`,
     });
   }
 
@@ -235,7 +244,7 @@ export class UpsourceApi {
   }
 
   async rpc<T>(name: string, body: object): Promise<T> {
-    const response: T | Err = await (await fetch(`${this.host}/~rpc/${name}`, {
+    const json: T | Err = await (await myFetch(`${this.host}/~rpc/${name}`, {
       method: "POST",
       headers: {
         authorization: this.authorizationHeader,
@@ -243,11 +252,11 @@ export class UpsourceApi {
       body: JSON.stringify(body),
     })).json();
 
-    if (UpsourceApi.isErr(response)) {
-      throw new UpsourceError(response);
+    if (UpsourceApi.isErr(json)) {
+      throw new UpsourceError(json);
     }
 
-    return response;
+    return json;
   }
 }
 

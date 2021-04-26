@@ -5,7 +5,6 @@
 ## Info
 Here are my [Deno](https://deno.land/) scripts:
 - [chromedriver-check](#chromedriver-check)
-- [debug-http](#debug-http)
 - [dep-check](#dep-check)
 - [file-edit](#file-edit)
 - [flow](#flow)
@@ -20,9 +19,6 @@ In your Deno code you may use my [`lib`](./src/lib) direactory.
 
 ## chromedriver-check
 Check that chromedriver has the same version with browser.
-
-## debug-http
-Run this to debug any HTTP-requests.
 
 ## dep-check
 Check dependencies in your architecture.

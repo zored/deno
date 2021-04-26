@@ -15,15 +15,17 @@ import {
   Review,
   ReviewId,
   RevisionInfo,
+  RevisionReachability,
   RevisionsInReviewResponse,
   UpsourceError,
   UpsourceService,
   VoidMessage,
 } from "./lib/upsource.ts";
-import { fromPairsArray, sleepMs } from "./lib/utils.ts";
+import { debugLog, fromPairsArray, sleepMs } from "./lib/utils.ts";
 import { load } from "./lib/configs.ts";
 import { fromPairs, zip } from "../deps.ts";
-import { ConfigGitlabApiFactory, GitlabApi, ProjectId } from "./lib/gitlab.ts";
+import { ConfigGitlabApiFactory, GitlabApi } from "./lib/gitlab.ts";
+import { serve } from "https://deno.land/std@0.94.0/http/server.ts";
 
 function getJiraIssueUrl(key: IssueKey): string {
   return BrowserClientFactory.get().getHost() + "/browse/" + key;
@@ -69,7 +71,7 @@ function getGitlabProjectFromVcsUrl(p: string): string | null {
   return m[1];
 }
 
-await runCommands({
+const commands = {
   async recent({ i, a, b, n }: any) {
     const refs = (await getGit().recentRefs()).slice(
       a || -Infinity,
@@ -96,17 +98,88 @@ await runCommands({
     await print(output);
   },
 
-  async status() {
+  async statusServe({ p = 8000 }) {
+    console.log(`Listening: http://localhost:${p}/`);
+    const c = serve({ port: p });
+    for await (const req of c) {
+      const { url } = req;
+      let body: string | Uint8Array = "", status = 200;
+      const headers: HeadersInit = { "content-type": "text/html" };
+
+      switch (url) {
+        case "/status":
+          headers["content-type"] = "application/json";
+          try {
+            body = JSON.stringify(await commands._getStatusInfo());
+          } catch (e) {
+            const error = e instanceof Error ? e.message : JSON.stringify(e);
+            console.error(error);
+            body = JSON.stringify({ error });
+          }
+          break;
+        case "/":
+        case "":
+          headers["location"] = "/index.htm";
+          status = 308;
+          break;
+        default:
+          const file = Object.entries({
+            "/main.css": "text/css",
+            "/main.js": "text/javascript",
+            "/index.htm": "text/html",
+          }).find(([k]) => k === url);
+          if (file) {
+            const [path, mime] = file;
+            headers["content-type"] = mime;
+            body = Deno.readFileSync(`src/flow/${path}`);
+            break;
+          }
+          status = 404;
+          body = "not found";
+          break;
+      }
+
+      req.respond({ headers: new Headers(headers), body, status });
+    }
+  },
+
+  async status({ i }: { i: string[] | string | undefined }): Promise<void> {
+    console.log(JSON.stringify(
+      await commands._getStatusInfo(
+        (Array.isArray(i) ? i : [i]).filter((k) => !!k).map((k) => k + ""),
+      ),
+    ));
+  },
+
+  async _getStatusInfo(onlyIssueKeys: IssueKey[] = []): Promise<any> {
     const gitlab = getGitlab(),
       jira = getJira(),
       upsourceApi = createUpsourceApi(),
       upsource = new UpsourceService(upsourceApi);
 
-    const reviews = (await upsource.getAllMyReviews()).result.reviews || [];
+    const vcsRepoUrlByUpsourceProjectId: Record<string, string> = fromPairs(
+      (await upsourceApi.getProjectVcsLinks({
+        projectId: load<{ projectId: string }>("upsource").projectId,
+      })).result.repo.map((v) => [v.id, v.url[0]]),
+    );
+
+    const jiraIssueKeys: IssueKey[] = onlyIssueKeys.length
+      ? []
+      : (await jira.findIssues({
+        jql: BrowserClient.JQL_MY_UNRESOLVED_OR_ASSIGNED_TO_MERGE,
+        fields: ["parent"],
+      })).map((v: any) => v.key);
+
+    const filter: string =
+      (onlyIssueKeys.length
+        ? onlyIssueKeys.map((v) => `and ${v}`)
+        : jiraIssueKeys.map((v) => `or ${v}`))
+        .join(" ");
+    const reviews =
+      (await upsource.getAllMyReviews({ filter })).result.reviews || [];
     const revisionsForReview = await Promise.all(
       reviews.map((r) => upsourceApi.getRevisionsInReview(r.reviewId)),
     );
-
     const reviewsWithRevisions = (zip(reviews, revisionsForReview) as [
       Review,
       Resulting<RevisionsInReviewResponse>,
@@ -116,13 +189,6 @@ await runCommands({
         revisions.result.allRevisions.revision,
       ] as [Review, RevisionInfo[]]
     );
-
-    const vcsRepoUrlByUpsourceProjectId: Record<string, string> = fromPairs(
-      (await upsourceApi.getProjectVcsLinks({
-        projectId: load<{ projectId: string }>("upsource").projectId,
-      })).result.repo.map((v) => [v.id, v.url[0]]),
-    );
-
     const projectIdsByReviewId: Record<string, string[]> = fromPairsArray(
       reviewsWithRevisions.flatMap(
         ([review, revisions]) =>
@@ -137,7 +203,6 @@ await runCommands({
       ),
       true,
     );
-
     const reviewsWithKeys: [Review, Set<IssueKey>][] = reviewsWithRevisions
       .map(([review, revisions]) =>
         [
@@ -149,7 +214,6 @@ await runCommands({
           ),
         ] as [Review, Set<IssueKey>]
       );
-
     const reviewsByKey: Record<IssueKey, Review[]> = fromPairsArray(
       reviewsWithKeys
         .flatMap(([review, keys]) =>
@@ -161,17 +225,29 @@ await runCommands({
     const lastViewed = (a: any): number =>
       (new Date(a.fields.lastViewed)).getTime();
 
-    console.log(JSON.stringify(
+    const myJiraName = await jira.getCurrentUserName();
+
+    const issueKeys: IssueKey[] = onlyIssueKeys.length
+      ? onlyIssueKeys
+      : (await jira.findIssues({
+        jql: [
+          ...new Set<IssueKey>([
+            ...jiraIssueKeys,
+            ...reviewsWithKeys.flatMap(([, k]) => [...k]),
+          ]),
+        ].map((v) => `key = ${v}`).join(" OR "),
+        fields: ["parent"],
+      })).flatMap((v: any) =>
+        debugLog([
+          v.key,
+          ...(v.fields && v.fields.parent ? [v.fields.parent.key] : []),
+        ])
+      );
+
+    return fromPairs(
       await Promise.all(
         (await Promise.all(
-          [
-            ...new Set<IssueKey>([
-              ...((await jira.fetchAllIssues(
-                BrowserClient.JQL_MY_UNRESOLVED,
-              )).map((issue) => issue.key)),
-              ...reviewsWithKeys.flatMap(([, k]) => [...k]),
-            ]),
-          ].map((key) =>
+          issueKeys.map((key) =>
             jira.getIssueFields(key, [
               "status",
               "summary",
@@ -179,9 +255,28 @@ await runCommands({
               "lastViewed",
               "assignee",
               automatedInfoField,
+            ], [
+              "changelog",
             ])
           ),
         ))
+          .filter((t) => {
+            if (t.fields.status.name !== "To Merge") {
+              return true;
+            }
+            if (t.fields.assignee.name === myJiraName) {
+              return true;
+            }
+
+            // I was developer:
+            return t.changelog.histories
+              .some((v: any) =>
+                v.items
+                  .some((v: any) =>
+                    v.field === "Develop" && v.to === myJiraName
+                  )
+              );
+          })
           .sort((a, b) => lastViewed(a) - lastViewed(b))
           .map(async (t) => {
             let parent = null;
@@ -194,12 +289,12 @@ await runCommands({
                 },
               } = t.fields.parent;
               parent = {
+                key,
                 summary,
                 url: getJiraIssueUrl(key),
                 status,
               };
             }
-
             const {
               key,
               fields: {
@@ -211,6 +306,7 @@ await runCommands({
             } = t;
 
             const issue: any = {
+              key,
               summary,
               url: getJiraIssueUrl(key),
               status,
@@ -256,10 +352,10 @@ await runCommands({
                 r.pipelines = pipelines;
               }
             }
-            return r;
+            return [key, r];
           }),
       ),
-    ));
+    );
   },
 
   async putBranchReview({ w }: any) {
@@ -279,6 +375,8 @@ await runCommands({
     let responses: any[] = [];
     let action = "create";
     let review: Review | undefined;
+
+    const sleep = () => sleepMs(10000);
 
     while (true) {
       const reviewsResponse = await upsource.getReviews({
@@ -319,7 +417,7 @@ await runCommands({
         }
 
         console.error(JSON.stringify(responses));
-        await sleepMs(10000);
+        await sleep();
         continue;
       }
 
@@ -335,7 +433,7 @@ await runCommands({
           throw e;
         }
         console.error({ e });
-        await sleepMs(10000);
+        await sleep();
         continue;
       }
       responses = [reviewResponse];
@@ -354,6 +452,21 @@ await runCommands({
       break;
     }
 
+    while (true) {
+      const unreachableRevisions =
+        (await upsource.getRevisionsInReview(review.reviewId))
+          .result
+          .allRevisions
+          .revision
+          .filter((r) => r.reachability !== RevisionReachability.Reachable);
+      if (unreachableRevisions.length === 0) {
+        break;
+      }
+      console.error({ unreachableRevisions });
+      await sleep();
+    }
+
     console.log(JSON.stringify({ review, revisions, responses, action }));
   },
-});
+};
+await runCommands(commands);
