@@ -1,12 +1,6 @@
 #!/usr/bin/env deno run -A
-import {
-  createUpsourceApi,
-  ParticipantState,
-  Review,
-  UpsourceService,
-} from "./lib/upsource.ts";
+import { createUpsourceApi, UpsourceService } from "./lib/upsource.ts";
 import { Commands } from "./lib/command.ts";
-import { load } from "./lib/configs.ts";
 
 const api = createUpsourceApi();
 const upsource = new UpsourceService(api);

@@ -40,6 +40,7 @@ class SearchConfigLoader implements ConfigLoader {
 class ArgConfigLoader implements ConfigLoader {
   constructor(private name = "zored-deno") {
   }
+
   load(): object {
     const prefix = `--${this.name}=`;
     return mergeAll(

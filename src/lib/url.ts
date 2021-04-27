@@ -1,4 +1,5 @@
 export type QueryObject = Record<string, string[] | string | undefined>;
+
 export function parseQuery(o: QueryObject): string {
   return Object
     .entries(o)

@@ -15,6 +15,7 @@ export interface IRunner {
     command: ShCommand,
     options?: Partial<Deno.RunOptions>,
   ): Promise<string>;
+
   run(
     command: ShCommand,
     options?: Partial<Deno.RunOptions>,

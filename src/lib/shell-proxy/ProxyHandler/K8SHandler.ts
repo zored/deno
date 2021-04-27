@@ -48,14 +48,6 @@ export class K8SHandler extends ProxyHandler<IK8SProxy> {
     return this.kubectl(c, [head, tail.join(" ")]);
   };
 
-  private kubectl = (c: IK8SProxy, args: ShCommands = []) => {
-    return [
-      kubectlCommand,
-      ...this.getFlags(c),
-      ...args,
-    ];
-  };
-
   suits = (c: IK8SProxy) => c.type === "k8s";
 
   enrichArgument = async (
@@ -107,19 +99,6 @@ export class K8SHandler extends ProxyHandler<IK8SProxy> {
     return result;
   };
 
-  private async getPods(
-    exec: ExecSubCommand,
-    commands: string[] = [],
-  ): Promise<Pod[]> {
-    const result = JSON.parse(
-      await exec(["kubectl", "get", "pods", "--output", "json", ...commands]),
-    );
-    if (commands.some((c) => c.trim()[0] !== "-")) {
-      return [result];
-    }
-    return result.items;
-  }
-
   handleParams = async (
     c: IK8SProxy,
     params: Params,
@@ -158,4 +137,25 @@ export class K8SHandler extends ProxyHandler<IK8SProxy> {
       throw new Error("No pod criteria set up for K8S.");
     }
   };
+
+  private kubectl = (c: IK8SProxy, args: ShCommands = []) => {
+    return [
+      kubectlCommand,
+      ...this.getFlags(c),
+      ...args,
+    ];
+  };
+
+  private async getPods(
+    exec: ExecSubCommand,
+    commands: string[] = [],
+  ): Promise<Pod[]> {
+    const result = JSON.parse(
+      await exec(["kubectl", "get", "pods", "--output", "json", ...commands]),
+    );
+    if (commands.some((c) => c.trim()[0] !== "-")) {
+      return [result];
+    }
+    return result.items;
+  }
 }

@@ -1,7 +1,11 @@
 # deno
-
 [![ci](https://github.com/zored/deno/workflows/ci/badge.svg?branch=master)](https://github.com/zored/deno/actions)
 ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/zored/deno)
+
+Latest versions have some issues with `fetch`:
+```shell
+deno upgrade --version=1.9.0
+```
 
 ## Info
 

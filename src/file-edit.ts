@@ -15,7 +15,8 @@ class Position {
   constructor(
     private line: number,
     private column: number,
-  ) {}
+  ) {
+  }
 
   right(newLine: boolean = false): void {
     this.column++;
@@ -44,11 +45,14 @@ class Position {
     return `${this.line}:${this.column}`;
   }
 }
+
 class Cursor {
   constructor(
     public path: string,
     public position: Position,
-  ) {}
+  ) {
+  }
+
   static fromString(s: string): Cursor {
     const [path, line, column] = s.split(":");
     return new Cursor(path, new Position(parseInt(line), parseInt(column)));
@@ -94,7 +98,12 @@ class Cursor {
 
 class File {
   private static extPattern = /(\.[^.]+?)$/;
+
   constructor(private path: string) {
+  }
+
+  static fromPath(path: string): File {
+    return new File(path);
   }
 
   async map(f: (text: string) => string): Promise<void> {
@@ -104,6 +113,7 @@ class File {
   read(): Promise<string> {
     return readTextFile(this.path);
   }
+
   async renameButExtension(name: string): Promise<void> {
     const [, ext] = this.path.match(File.extPattern) || [];
     const newPath = join(
@@ -113,19 +123,19 @@ class File {
     console.log([this.path, newPath]);
     await rename(this.path, newPath);
   }
+
   getNameWithoutExtension(): string {
     return basename(this.path).replace(File.extPattern, "");
   }
+
   private write(text: string): Promise<void> {
     return writeTextFile(this.path, text);
-  }
-  static fromPath(path: string): File {
-    return new File(path);
   }
 }
 
 class Editor {
-  constructor(private cursor: Cursor, private file: File) {}
+  constructor(private cursor: Cursor, private file: File) {
+  }
 
   static fromString(s: string): Editor {
     const cursor = Cursor.fromString(s);

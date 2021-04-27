@@ -1,5 +1,6 @@
 import { Info } from "./info.ts";
 import { assertEquals } from "../../deps.ts";
+
 const { test } = Deno;
 
 test("updates test", () => {

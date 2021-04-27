@@ -1,5 +1,6 @@
 import { Dep, DepFactory } from "./dep-check.ts";
 import { assertEquals } from "../../deps.ts";
+
 const { test } = Deno;
 
 test("retrieve correct deps", async () => {

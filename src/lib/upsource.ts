@@ -248,6 +248,7 @@ export class UpsourceApi {
       method: "POST",
       headers: {
         authorization: this.authorizationHeader,
+        "content-type": "application/json",
       },
       body: JSON.stringify(body),
     })).json();

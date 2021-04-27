@@ -1,5 +1,6 @@
 import { Duration, Milliseconds, parseDuration } from "./duration.ts";
 import { assertEquals } from "../../deps.ts";
+
 const { test } = Deno;
 
 const data: [Duration, Milliseconds][] = [

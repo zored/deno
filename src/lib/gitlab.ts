@@ -32,9 +32,6 @@ export class GitlabApi {
 
   groups = async (p: ProjectId) => this.fetch(`groups/${this.project(p)}/`);
 
-  private project = (p: ProjectId) =>
-    typeof p === "number" ? p : encodeURIComponent(p);
-
   async fetch(path: string, init: RequestInit = {}) {
     return await (await myFetch(
       `${this.host}/api/v4/${path}`,
@@ -45,6 +42,9 @@ export class GitlabApi {
       } as RequestInit, init),
     )).json();
   }
+
+  private project = (p: ProjectId) =>
+    typeof p === "number" ? p : encodeURIComponent(p);
 }
 
 export interface GitlabApiFactory {

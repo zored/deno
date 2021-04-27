@@ -173,7 +173,8 @@ namespace JsonMatcher {
   }
 
   export class Regexp implements Checker {
-    constructor(private readonly r: RegExp) {}
+    constructor(private readonly r: RegExp) {
+    }
 
     check(v: Scalar) {
       return this.r.test(v + "");

@@ -39,8 +39,10 @@ export async function myFetch(
   debugLog({ request: { id, input, init, response } });
   // monkey patch:
   ["text"].forEach((name) => {
-    const f = (response as any)[name];
-    (response as any)[name] = async () => {
+    const r = response as any;
+    const f = r[name];
+    Object.defineProperty(r, name, { writable: true });
+    r[name] = async () => {
       const result = await f.call(response);
       debugLog({ response: { id, [name]: result } });
       return result;

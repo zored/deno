@@ -28,9 +28,7 @@ export class PathRetriever {
   builds = (j: JobName) => `${this.job(j)}/wfapi/runs`;
   nodeDescribe = (n: NodeAddress) => `${this.node(n)}/wfapi/describe`;
   buildParams = (j: JobName) => `${this.job(j)}/buildWithParameters`;
-  private job = (j: JobName) => `/job/${j}`;
-  private node = (n: NodeAddress) =>
-    `${this.job(n.build.job)}/${n.build.job}/execution/node/${n.nodeId}`;
+
   parseQueueItemId(queueItemUrl: string): QueueItemId {
     const matches = queueItemUrl.match(/\/queue\/item\/(\d+)/);
     if (!matches) {
@@ -38,6 +36,7 @@ export class PathRetriever {
     }
     return parseInt(matches[1]);
   }
+
   parseBuild(queueItemUrl: string): BuildAddress | null {
     const matches = queueItemUrl.match(
       /\/jenkins\/pipelines\/(.+?)\/runs\/(\d+)/,
@@ -49,7 +48,13 @@ export class PathRetriever {
     const job = matches[1];
     return { buildId, job };
   }
+
   queueItem = (id: QueueItemId) => `/queue/item/${id}/api/json`;
+
+  private job = (j: JobName) => `/job/${j}`;
+
+  private node = (n: NodeAddress) =>
+    `${this.job(n.build.job)}/${n.build.job}/execution/node/${n.nodeId}`;
 }
 
 class BluePathRetriever {
@@ -71,11 +76,9 @@ interface QueueItem {
 }
 
 export class JenkinsApi {
+  private static readonly crumbName = "Jenkins-Crumb";
   public cookie: string | undefined = "";
   public crumb: string | undefined = "";
-
-  private static readonly crumbName = "Jenkins-Crumb";
-
   private paths = new PathRetriever();
   private bluePaths = new BluePathRetriever();
   private loggedIn = false;

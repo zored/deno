@@ -17,13 +17,6 @@ export class ProxyConfigTree {
       .getAncestors(this.nodeById(id))
       .map((c) => c.proxy);
 
-  private throwOnUndefined = <T>(t: T | undefined): T => {
-    if (t === undefined) {
-      throw new Error(`Value is undefined.`);
-    }
-    return t;
-  };
-
   getRunsById = (runName: string) => {
     const [a, b] = runName.split(":");
     const [runId, nodeId] = b === undefined ? [a] : [b, a];
@@ -37,6 +30,18 @@ export class ProxyConfigTree {
         .entries(c.proxy.run || {})
         .filter(([id]) => id === runId)
     );
+  };
+
+  getIds = (): Id[] =>
+    this
+      .flatMap((c) => [c.path, c.proxy.globalAlias])
+      .filter((id): id is Id => id !== undefined);
+
+  private throwOnUndefined = <T>(t: T | undefined): T => {
+    if (t === undefined) {
+      throw new Error(`Value is undefined.`);
+    }
+    return t;
   };
 
   private globalRunId = (n: string, c: IConfig) =>
@@ -111,11 +116,6 @@ export class ProxyConfigTree {
     }
     return ancestors.reverse();
   }
-
-  getIds = (): Id[] =>
-    this
-      .flatMap((c) => [c.path, c.proxy.globalAlias])
-      .filter((id): id is Id => id !== undefined);
 
   private flatMap = <T>(f: (c: IConfig) => T[]): T[] =>
     this.map((c) => f(c)).reduce((a, cs) => a.concat(cs), [] as T[]);

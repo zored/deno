@@ -7,6 +7,7 @@ import {
   WordRetriever,
 } from "./shell-completion.ts";
 import { Commands } from "./command.ts";
+
 test("generator", () => {
   const file = "/some/file.ts";
   const result = new Generator(`file://${file}`, "generote").generate(
@@ -70,7 +71,14 @@ test("completor sh", () => {
 });
 
 test("command", async () => {
-  const commands = new Commands({ goodbye: { cruel: { world: () => {} } } });
+  const commands = new Commands({
+    goodbye: {
+      cruel: {
+        world: () => {
+        },
+      },
+    },
+  });
   new CommandFactory(
     "path/to.ts",
     "app.ts",

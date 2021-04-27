@@ -38,6 +38,7 @@ export const assertAllTracked = async () => {
     `You have some untracked files:` + files.map((f) => "\n" + f).join(""),
   );
 };
+
 export class GitHooks {
   constructor(
     private readonly handlers: GitHookHandlers = {},

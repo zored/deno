@@ -1,5 +1,6 @@
 #!/usr/bin/env deno run -A
 import { exec, OutputMode } from "../deps.ts";
+
 const { exit } = Deno;
 const responses = await Promise.all([
   "chromedriver --version",

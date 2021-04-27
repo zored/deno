@@ -72,6 +72,14 @@ class RuleChecker {
     );
   }
 
+  static async fromPath(rulesPath: string): Promise<RuleChecker> {
+    const file = await Deno.readFile(rulesPath);
+    const text = new TextDecoder("utf8").decode(file);
+    const rules = JSON.parse(text);
+
+    return new RuleChecker(rules);
+  }
+
   check(depsByDest: Dep[], deps: Dep[]): string {
     return this.layers
       .map(([name, layers]) => this.checkLayers(name, layers, depsByDest, deps))
@@ -137,14 +145,6 @@ class RuleChecker {
     return `${
       red(`You have layer ${bold(layerName)} dependency flaws 😨\n\n`)
     }${message}`;
-  }
-
-  static async fromPath(rulesPath: string): Promise<RuleChecker> {
-    const file = await Deno.readFile(rulesPath);
-    const text = new TextDecoder("utf8").decode(file);
-    const rules = JSON.parse(text);
-
-    return new RuleChecker(rules);
   }
 }
 
