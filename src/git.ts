@@ -4,6 +4,7 @@ import {
   completionByCommands,
   GitClient,
   GitPaths,
+  History,
   MessageBuilderRepo,
   print,
 } from "../mod.ts";
@@ -12,6 +13,10 @@ const git = new GitClient();
 
 const messageBuilders = new MessageBuilderRepo();
 const defaultRoot = "/Users/r.akhmerov/git";
+
+function getHistoryRepo() {
+  return History.RepoFactory.create();
+}
 
 const commands = new Commands({
   recent: async ({ _: [i] }) => {
@@ -27,6 +32,14 @@ const commands = new Commands({
     const version = await git.lastVersion();
     version.inc(type);
     await git.pushNewTag(prefix + version);
+  },
+  history: {
+    async push({ branch, dir }) {
+      await getHistoryRepo().push(branch, dir);
+    },
+    async list() {
+      console.log(JSON.stringify(getHistoryRepo().list()));
+    },
   },
   message: {
     add: ({ _: message }) =>

@@ -1,5 +1,6 @@
 import { JSONValue, search } from "https://deno.land/x/jmespath/index.ts";
 import { merge } from "../../deps.ts";
+import { existsSync } from "./utils.ts";
 
 interface ConfigLoader {
   load(): object;
@@ -19,11 +20,11 @@ function mergeAll(a: object[]) {
 }
 
 class JsonConfigLoader implements ConfigLoader {
-  constructor(private path: string) {
+  constructor(private file: JsonFile<any>) {
   }
 
   load(): object {
-    return JSON.parse(Deno.readTextFileSync(this.path));
+    return this.file.load();
   }
 }
 
@@ -60,4 +61,26 @@ export function load<T = any>(jsonPath: string): T {
     jsonPath,
   );
   return l.load() as any as T;
+}
+
+export class JsonFile<T> {
+  constructor(private path: string, private defaults: T) {
+  }
+
+  load(): T {
+    if (!existsSync(this.path)) {
+      this.save(this.defaults);
+    }
+    return JSON.parse(Deno.readTextFileSync(this.path));
+  }
+
+  save(t: T): void {
+    Deno.writeTextFileSync(this.path, JSON.stringify(t));
+  }
+
+  map(f: (t: T) => T): T {
+    const v = f(this.load());
+    this.save(v);
+    return v;
+  }
 }

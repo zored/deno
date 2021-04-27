@@ -1,4 +1,4 @@
-import { parse, serve } from "../../deps.ts";
+import { serve } from "../../deps.ts";
 import { parseQuery, QueryObject } from "./url.ts";
 import { load } from "./configs.ts";
 import { myFetch } from "./utils.ts";
@@ -121,15 +121,23 @@ export class IssuesCacher {
   }
 
   async one(key: string, field: string = "summary"): Promise<string> {
-    if (!key) {
+    return (await this.all([key], field))[key] || "";
+  }
+
+  async all(
+    keys: string[],
+    field: string = "summary",
+  ): Promise<Record<IssueKey, string>> {
+    keys = keys.filter((k) => !!k);
+    if (!keys.length) {
       throw new Error(`Specify Jira issue key!`);
     }
-    const issues = await this.getAllIssues();
-    const issue = issues.find((i) => i.key === key);
-    if (!issue) {
-      return "";
-    }
-    return issue[field as keyof ITableIssue] as string;
+    return (await this.getAllIssues())
+      .filter((v) => keys.includes(v.key))
+      .reduce((r, v) => {
+        r[v.key] = v[field];
+        return r;
+      }, {} as Record<IssueKey, string>);
   }
 
   private async getAllIssues(): Promise<ITableIssue[]> {

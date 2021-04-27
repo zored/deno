@@ -1,8 +1,8 @@
 #!/usr/bin/env deno run -A
 import { JenkinsApi, JenkinsApiInfo } from "./lib/jenkins.ts";
-import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import { load } from "./lib/configs.ts";
 import { parse } from "../deps.ts";
+import { existsSync } from "./lib/utils.ts";
 
 const secrets = load<{
   job: string;

@@ -48,3 +48,16 @@ export async function myFetch(
   });
   return response;
 }
+
+export function existsSync(filename: string): boolean {
+  try {
+    Deno.statSync(filename);
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      return false;
+    } else {
+      throw error;
+    }
+  }
+}

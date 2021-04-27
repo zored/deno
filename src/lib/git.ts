@@ -1,5 +1,6 @@
 import { SemVer } from "../../deps.ts";
 import { Runner } from "./command.ts";
+import { JsonFile, load } from "./configs.ts";
 
 const { readTextFile, writeTextFile, remove } = Deno;
 
@@ -126,12 +127,12 @@ export class GitClient {
     return this.api.getCurrentBranch();
   }
 
-  private async getLastVersion(): Promise<SemVer> {
-    return new SemVer(await this.api.lastTag());
-  }
-
   getOriginUrl() {
     return this.api.getRemoteUrl("origin");
+  }
+
+  private async getLastVersion(): Promise<SemVer> {
+    return new SemVer(await this.api.lastTag());
   }
 }
 
@@ -195,4 +196,50 @@ export class MessageBuilderRepo {
       return [];
     }
   };
+}
+
+export namespace History {
+  export type Branch = string;
+  export type Dir = string;
+  export type Item = [Branch, Dir];
+  export type Items = Item[];
+
+  export class RepoFactory {
+    static create(): Repo {
+      const path = load<{ path: string }>("git.history").path;
+      return new Repo(
+        new GitClient(),
+        new JsonFile<Items>(path, []),
+      );
+    }
+  }
+
+  export class Repo {
+    constructor(
+      private git: GitClient,
+      private config: JsonFile<Items>,
+      private size = 50,
+    ) {
+    }
+
+    async push(branch: Branch, dir: Dir): Promise<void> {
+      const item: Item = [
+        (branch || await this.git.getCurrentBranch()) as Branch,
+        dir || Deno.cwd(),
+      ];
+      if (!branch || branch === "-") {
+        return;
+      }
+      this.config.map((history) => [
+        ...history
+          .filter((it) => it.some((itemPart, i) => itemPart != item[i]))
+          .slice(-this.size),
+        item,
+      ]);
+    }
+
+    list(): Items {
+      return this.config.load();
+    }
+  }
 }

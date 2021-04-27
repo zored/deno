@@ -2,6 +2,7 @@
 import {
   BrowserClient,
   BrowserClientFactory,
+  History,
   IssueKey,
   print,
   runCommands,
@@ -71,7 +72,51 @@ function getGitlabProjectFromVcsUrl(p: string): string | null {
   return m[1];
 }
 
+function getIssueCacher() {
+  return new IssueCacherFactory().create();
+}
+
 const commands = {
+  async history({ i }) {
+    const items = History.RepoFactory.create().list().reverse();
+    const summaries = await getIssueCacher().all(
+      items.map(([branch]) => branch),
+    );
+
+    const itemsWithSummaries = items.map((v) => {
+      const [branch, dir] = v;
+      const r: {
+        branch: string;
+        dir: string;
+        summary?: string;
+        dirName: string;
+      } = {
+        branch,
+        dir,
+        dirName: dir.split("/").slice(-1)[0],
+      };
+      const summary = summaries[branch];
+      if (summary) {
+        r.summary = summary;
+      }
+      return r;
+    });
+
+    if (i) {
+      const item = await new CliSelect().select(
+        itemsWithSummaries.map((v) => `${v.dirName}/${v.branch} ${v.summary}`),
+        (o, i) => itemsWithSummaries[i],
+      );
+      if (!item) {
+        throw new Error(`No item selected`);
+      }
+      console.log(JSON.stringify(item));
+      return;
+    }
+    console.log(JSON.stringify(itemsWithSummaries));
+
+    return;
+  },
   async recent({ i, a, b, n }: any) {
     const refs = (await getGit().recentRefs()).slice(
       a || -Infinity,
@@ -79,14 +124,13 @@ const commands = {
     );
     const issues: string[] = [];
     const issueRefs: string[] = [];
-    for (let ref of refs) {
-      try {
-        const summary = await (new IssueCacherFactory().create()).one(ref);
+
+    Object.entries(await getIssueCacher().all(refs)).forEach(
+      ([ref, summary]) => {
         issues.push(`${ref} ${summary}`);
         issueRefs.push(ref);
-      } catch (e) {
-      }
-    }
+      },
+    );
 
     const all = (): string => issues.concat([""]).join("\n");
     const one = (i: number): string => issues[i];

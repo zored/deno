@@ -3,8 +3,8 @@
 // Where:
 //  2021-04-05 - is monday date.
 //  4,12 - is allowed diff length.
-import { existsSync } from "https://deno.land/std@0.91.0/fs/mod.ts";
 import { printf } from "https://deno.land/std@0.91.0/fmt/printf.ts";
+import { existsSync } from "./lib/utils.ts";
 
 await main();
 
