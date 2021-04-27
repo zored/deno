@@ -134,7 +134,6 @@ export class JenkinsApi {
         ...headers,
         ...this.getAuthHeaders(),
       },
-      credentials: "inline",
       ...request,
     });
   };
