@@ -135,7 +135,7 @@ export class IssuesCacher {
     return (await this.getAllIssues())
       .filter((v) => keys.includes(v.key))
       .reduce((r, v) => {
-        r[v.key] = v[field];
+        r[v.key] = (v as any)[field];
         return r;
       }, {} as Record<IssueKey, string>);
   }
