@@ -2,6 +2,7 @@
 import {
   BrowserClient,
   BrowserClientFactory,
+  CommandMap,
   History,
   IssueKey,
   print,
@@ -77,7 +78,7 @@ function getIssueCacher() {
 }
 
 const commands = {
-  async history({ i }) {
+  async history({ i }: any) {
     const items = History.RepoFactory.create().list().reverse();
     const summaries = await getIssueCacher().all(
       items.map(([branch]) => branch),
@@ -201,11 +202,11 @@ const commands = {
       upsourceApi = createUpsourceApi(),
       upsource = new UpsourceService(upsourceApi);
 
-    const vcsRepoUrlByUpsourceProjectId: Record<string, string> = fromPairs(
+    const vcsRepoUrlByUpsourceProjectId = fromPairs(
       (await upsourceApi.getProjectVcsLinks({
         projectId: load<{ projectId: string }>("upsource").projectId,
       })).result.repo.map((v) => [v.id, v.url[0]]),
-    );
+    ) as Record<string, string>;
 
     const jiraIssueKeys: IssueKey[] = onlyIssueKeys.length
       ? []
@@ -502,7 +503,10 @@ const commands = {
           .result
           .allRevisions
           .revision
-          .filter((r) => r.reachability !== RevisionReachability.Reachable);
+          .filter((r) =>
+            ![RevisionReachability.Reachable, RevisionReachability.Unknown]
+              .includes(r.reachability)
+          );
       if (unreachableRevisions.length === 0) {
         break;
       }
@@ -513,4 +517,4 @@ const commands = {
     console.log(JSON.stringify({ review, revisions, responses, action }));
   },
 };
-await runCommands(commands);
+await runCommands(commands as any as CommandMap);
