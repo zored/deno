@@ -1,3 +1,5 @@
+import { chunk } from "../../deps.ts";
+
 export async function sleepMs(ms = 1) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -61,5 +63,44 @@ export function existsSync(filename: string): boolean {
     } else {
       throw error;
     }
+  }
+}
+
+export async function promiseAllChunk<T>(
+  a: Promise<T>[],
+  { size = 5, delayMs = 0 } = {},
+): Promise<T[]> {
+  const result: T[] = [];
+  const chunks = chunk(a, size, undefined) as T[][];
+  for (const c of chunks) {
+    (await Promise.all(c)).forEach((v) => result.push(v));
+    await sleepMs(delayMs);
+  }
+  return result;
+}
+
+type Timestamp = number;
+
+export class RateLimit {
+  private runsTimestamps: Timestamp[] = [];
+  constructor(
+    private count = 20,
+    private perMs = 10,
+  ) {
+  }
+
+  async run() {
+    const now = new Date().getTime();
+    const edge = now - this.perMs;
+    this.runsTimestamps = this.runsTimestamps.filter((v) => v > edge);
+
+    if (this.runsTimestamps.length >= this.count) {
+      const ms = now - this.runsTimestamps[this.count - 1] + 1;
+      await sleepMs(ms);
+      await this.run();
+      return;
+    }
+
+    this.runsTimestamps.push(now);
   }
 }

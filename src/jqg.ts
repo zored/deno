@@ -236,8 +236,18 @@ namespace JsonMatcher {
   }
 
   function pathToString(p: Path): string {
-    return p.map((k) => Number.isNaN(parseInt(k + "")) ? `.${k}` : `[${k}]`)
-      .join("");
+    return p.map((k) => {
+      const s = k + "";
+      return Number.isNaN(parseInt(s)) ? getStringKey(s) : `[${k}]`;
+    }).join("");
+  }
+
+  function getStringKey(k: string): string {
+    if (k.match(/^\d/) || k.match(/[\-]/)) {
+      return `["${k}"]`;
+    }
+
+    return k;
   }
 
   export async function match(o: any, vs: MatchVisitor[]): Promise<Info[]> {

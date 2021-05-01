@@ -1,7 +1,7 @@
 import { merge } from "../../deps.ts";
 import { load } from "./configs.ts";
 import { parseQuery } from "./url.ts";
-import { myFetch } from "./utils.ts";
+import { myFetch, RateLimit } from "./utils.ts";
 
 export type ProjectId = number | string;
 
@@ -21,6 +21,7 @@ export class GitlabApi {
   constructor(
     private host: string,
     private token: string,
+    private rateLimit = new RateLimit(100, 300),
   ) {
   }
 
@@ -33,6 +34,7 @@ export class GitlabApi {
   groups = async (p: ProjectId) => this.fetch(`groups/${this.project(p)}/`);
 
   async fetch(path: string, init: RequestInit = {}) {
+    await this.rateLimit.run();
     return await (await myFetch(
       `${this.host}/api/v4/${path}`,
       merge({

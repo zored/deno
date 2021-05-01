@@ -192,11 +192,15 @@ const commands = {
     console.log(JSON.stringify(
       await commands._getStatusInfo(
         (Array.isArray(i) ? i : [i]).filter((k) => !!k).map((k) => k + ""),
+        true,
       ),
     ));
   },
 
-  async _getStatusInfo(onlyIssueKeys: IssueKey[] = []): Promise<any> {
+  async _getStatusInfo(
+    onlyIssueKeys: IssueKey[] = [],
+    revert = false,
+  ): Promise<any> {
     const gitlab = getGitlab(),
       jira = getJira(),
       upsourceApi = createUpsourceApi(),
@@ -267,8 +271,6 @@ const commands = {
     );
 
     const automatedInfoField = "customfield_54419";
-    const lastViewed = (a: any): number =>
-      (new Date(a.fields.lastViewed)).getTime();
 
     const myJiraName = await jira.getCurrentUserName();
 
@@ -289,122 +291,169 @@ const commands = {
         ])
       );
 
-    return fromPairs(
-      await Promise.all(
-        (await Promise.all(
-          issueKeys.map((key) =>
-            jira.getIssueFields(key, [
-              "status",
-              "summary",
-              "parent",
-              "lastViewed",
-              "assignee",
-              automatedInfoField,
-            ], [
-              "changelog",
-            ])
-          ),
-        ))
-          .filter((t) => {
-            if (t.fields.status.name !== "To Merge") {
-              return true;
-            }
-            if (t.fields.assignee.name === myJiraName) {
-              return true;
-            }
+    const statusConfig = load<
+      { order: string[]; icons: Record<string, string> }
+    >("jira.status");
+    const statusPriorities = statusConfig.order.reduce(
+      (o, status, index) => {
+        o[status] = index + 1;
+        return o;
+      },
+      {} as Record<string, number>,
+    );
 
-            // I was developer:
-            return t.changelog.histories
-              .some((v: any) =>
-                v.items
-                  .some((v: any) =>
-                    v.field === "Develop" && v.to === myJiraName
-                  )
-              );
-          })
-          .sort((a, b) => lastViewed(a) - lastViewed(b))
-          .map(async (t) => {
-            let parent = null;
-            if (t.fields.parent) {
-              const {
-                key,
-                fields: {
-                  summary,
-                  status: { name: status },
-                },
-              } = t.fields.parent;
-              parent = {
-                key,
-                summary,
-                url: getJiraIssueUrl(key),
-                status,
-              };
-            }
+    const statusPriority = (t: any) =>
+      statusPriorities[t.fields.status.name] ?? 0;
+    const lastViewed = (a: any): number =>
+      (new Date(a.fields.lastViewed)).getTime();
+    const lastDevOrAssignee = (f: any) =>
+      f.developers.length
+        ? f.developers.slice(-1)[0].name
+        : f.fields.assignee.name;
+    const humanPriority = (t: any) =>
+      lastDevOrAssignee(t) === myJiraName ? 0 : 1;
+
+    const result = await Promise.all(
+      (await Promise.all(
+        issueKeys.map((key) =>
+          jira.getIssueFields(key, [
+            "status",
+            "summary",
+            "parent",
+            "lastViewed",
+            "assignee",
+            automatedInfoField,
+          ], [
+            "changelog",
+          ])
+        ),
+      ))
+        .map((t) => {
+          t.developers = t.changelog.histories.flatMap((history: any) =>
+            history.items
+              .filter((item: any) =>
+                ["Developer", "Работал"].includes(item.field)
+              )
+              .map((item: any) => ({
+                name: item.to,
+                displayName: item.toString,
+              }))
+          );
+          return t;
+        })
+        .filter((t) => {
+          if (t.fields.status.name !== "To Merge") {
+            return true;
+          }
+          if (t.fields.assignee.name === myJiraName) {
+            return true;
+          }
+
+          // I was developer:
+          return t.developers.some((v: any) => v.name === myJiraName);
+        })
+        .sort((a, b) => {
+          return (statusPriority(a) - statusPriority(b)) ||
+            (humanPriority(a) - humanPriority(b)) ||
+            (lastViewed(a) - lastViewed(b));
+        })
+        .map(async (t) => {
+          let parent = null;
+          if (t.fields.parent) {
             const {
               key,
               fields: {
                 summary,
                 status: { name: status },
-                assignee: { displayName: assignee },
-                [automatedInfoField]: automatedInfo,
               },
-            } = t;
-
-            const issue: any = {
+            } = t.fields.parent;
+            parent = {
               key,
               summary,
               url: getJiraIssueUrl(key),
               status,
-              assignee,
             };
+          }
+          const {
+            key,
+            fields: {
+              summary,
+              status: { name: status },
+              assignee: { displayName: assignee },
+              [automatedInfoField]: automatedInfo,
+            },
 
-            if (automatedInfo && !automatedInfo.includes("Result: Success")) {
-              issue.automatedError = automatedInfo;
+            developers,
+          } = t;
+
+          const statusIcon = statusConfig.icons[status];
+          const issue: any = {
+            key,
+            summary,
+            url: getJiraIssueUrl(key),
+            status: (statusIcon ? `${statusIcon} ` : "") + status,
+            assignee,
+
+            developers: developers.map((v: any) => ({
+              displayName: v.displayName,
+              me: v.name === myJiraName,
+            })),
+          };
+
+          if (automatedInfo && !automatedInfo.includes("Result: Success")) {
+            issue.automatedError = automatedInfo;
+          }
+
+          if (parent) {
+            issue.parent = parent;
+          }
+
+          const r: any = { issue };
+
+          const reviews = reviewsByKey[key];
+          if (reviews && reviews.length > 0) {
+            r.reviews = await upsource.output(reviews);
+            const ref = key;
+
+            const pipelines = (await Promise.all(
+              reviews
+                .flatMap((r) =>
+                  projectIdsByReviewId[getStringReviewId(r.reviewId)] ?? []
+                )
+                .map((upsourceProjectId) =>
+                  vcsRepoUrlByUpsourceProjectId[upsourceProjectId]
+                )
+                .filter((v): v is string => !!v)
+                .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl))
+                .filter((p): p is string => p !== null)
+                .reduce((a, p) => {
+                  if (!a.includes(p)) {
+                    a.push(p);
+                  }
+                  return a;
+                }, [] as string[])
+                .map((p) =>
+                  gitlab.getPipelines(p, { ref, per_page: 1, page: 1 })
+                ),
+            ))
+              .flat()
+              .map(({ status, web_url }) => ({
+                status,
+                web_url,
+              }));
+            if (pipelines.length) {
+              r.pipelines = pipelines;
             }
-
-            if (parent) {
-              issue.parent = parent;
-            }
-
-            const r: any = { issue };
-
-            const reviews = reviewsByKey[key];
-            if (reviews && reviews.length > 0) {
-              r.reviews = await upsource.output(reviews);
-              const ref = key;
-
-              const pipelines = (await Promise.all(
-                reviews
-                  .flatMap((r) =>
-                    projectIdsByReviewId[getStringReviewId(r.reviewId)] ?? []
-                  )
-                  .map((upsourceProjectId) =>
-                    vcsRepoUrlByUpsourceProjectId[upsourceProjectId]
-                  )
-                  .filter((v): v is string => !!v)
-                  .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl))
-                  .filter((p): p is string => p !== null)
-                  .map((p) =>
-                    gitlab.getPipelines(p, { ref, per_page: 1, page: 1 })
-                  ),
-              ))
-                .flat()
-                .map(({ status, web_url }) => ({
-                  status,
-                  web_url,
-                }));
-              if (pipelines.length) {
-                r.pipelines = pipelines;
-              }
-            }
-            return [key, r];
-          }),
-      ),
+          }
+          return [key, r];
+        }),
     );
+
+    return fromPairs(revert ? result.reverse() : result);
   },
 
-  async putBranchReview({ w }: any) {
-    const issueKey = await getGit().getCurrentBranch(),
+  async putBranchReview({ w, i }: any) {
+    const issueKey: string = i || await getGit().getCurrentBranch(),
       originUrl = (await getGit().getOriginUrl()),
       revisions = (await getGit().getCurrentBranchHashes()),
       matches = originUrl.match(/\/([^\/]*).git$/);
@@ -467,17 +516,18 @@ const commands = {
       }
 
       let reviewResponse: Review;
+      const createReviewDto = {
+        revisions,
+        branch: `${issueKey}#${gitlabProject}`,
+        projectId: load<{ projectId: string }>("upsource").projectId,
+      };
       try {
-        reviewResponse = await upsource.createReview({
-          revisions,
-          branch: `${issueKey}#${gitlabProject}`,
-          projectId: load<{ projectId: string }>("upsource").projectId,
-        });
+        reviewResponse = await upsource.createReview(createReviewDto);
       } catch (e) {
         if (!(e instanceof UpsourceError)) {
           throw e;
         }
-        console.error({ e });
+        console.error({ e, createReviewDto });
         await sleep();
         continue;
       }

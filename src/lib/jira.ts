@@ -472,7 +472,17 @@ export class BrowserClient {
   }
 
   private async json(p: Promise<Response>): Promise<any> {
-    const r = JSON.parse(await (await p).text());
+    const text = await (await p).text();
+    let r: any;
+    try {
+      r = JSON.parse(text);
+    } catch (e) {
+      throw new Error(
+        `could not parse Jira response: ${
+          text.replaceAll(/\s+/mg, " ").substring(0, 200)
+        }`,
+      );
+    }
     if (r.errorMessages) {
       throw new JiraError(r);
     }
