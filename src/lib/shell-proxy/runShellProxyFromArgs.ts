@@ -10,10 +10,11 @@ export const runShellProxyFromArgs = async (
   const parsedArgs = parse(
     Deno.args,
     {
-      boolean: ["eval", "verbose"],
+      boolean: ["eval", "verbose", "tty"],
       string: ["merge", "config"],
       alias: {
         "eval": ["e"],
+        "tty": ["t"],
         "run": ["r"],
         "verbose": ["v"],
         "merge": ["m"],
@@ -24,7 +25,8 @@ export const runShellProxyFromArgs = async (
   );
   const {
     _,
-    eval: isEval,
+    // eval: isEval, // - deprecated
+    tty: isTty,
     run: isRun,
     verbose,
     config,
@@ -61,7 +63,7 @@ export const runShellProxyFromArgs = async (
   return await runner.run(
     name + "",
     deepestArgs.map((a) => a + ""),
-    isEval,
+    !isTty,
     isRun,
     merge ? JSON.parse(merge) : {},
     dry,

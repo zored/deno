@@ -21,6 +21,7 @@ Here are my [Deno](https://deno.land/) scripts:
 - [jira](#jira)
 - [shell-completion](#shell-completion)
 - [shell-proxy](#shell-proxy)
+- [url-diff](#url-diff)
 
 In your Deno code you may use my [`lib`](./src/lib) direactory.
 

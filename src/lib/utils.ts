@@ -104,3 +104,14 @@ export class RateLimit {
     this.runsTimestamps.push(now);
   }
 }
+
+export async function wait(
+  done: () => Promise<boolean>,
+  timeMs = 1000,
+): Promise<void> {
+  if (await done()) {
+    return;
+  }
+  await sleepMs(timeMs);
+  return wait(done, timeMs);
+}
