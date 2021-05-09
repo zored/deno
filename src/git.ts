@@ -8,11 +8,12 @@ import {
   MessageBuilderRepo,
   print,
 } from "../mod.ts";
+import { load } from "./lib/configs.ts";
 
 const git = new GitClient();
 
 const messageBuilders = new MessageBuilderRepo();
-const defaultRoot = "/Users/r.akhmerov/git";
+const defaultRoot = load<{root: string}>("git").root;
 
 function getHistoryRepo() {
   return History.RepoFactory.create();
