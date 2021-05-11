@@ -1,4 +1,6 @@
 import type { ShCommands } from "./ProxyRunner.ts";
+import { tailNest } from "./utils.ts";
+import { debugLog } from "../utils.ts";
 
 export class CommandBuilder {
   constructor(private readonly commands: ShCommands[] = []) {
@@ -19,13 +21,23 @@ export class CommandBuilder {
       .join(" \\\n");
   }
 
-  toArray() {
-    return this.commands.flat();
+  toRunnable(): string[] {
+    return tailNest(this.getRunnableArray(), false);
   }
 
   with(cs: ShCommands) {
     return new CommandBuilder(this.commands.slice().concat([cs]));
   }
 
-  private escapeCommand = (c: string) => /[\s]/.test(c) ? `'${c}'` : c;
+  getDepth() {
+    return this.getRunnableArray().length;
+  }
+
+  private getRunnableArray() {
+    return this.commands.filter((cs) => cs.length > 0);
+  }
+
+  private escapeCommand = (c: string) => {
+    return /[\s]/.test(c) ? `'${c}'` : c;
+  };
 }

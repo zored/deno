@@ -103,7 +103,14 @@ export class ProxyRunner {
     }
 
     commands.add(
-      await this.getLastProxyCommands(configs, isEval, lastArgs, exec, params),
+      await this.getLastProxyCommands(
+        configs,
+        isEval,
+        lastArgs,
+        exec,
+        params,
+        commands.getDepth(),
+      ),
     );
 
     return await this.handleCommands(commands, dry);
@@ -112,7 +119,7 @@ export class ProxyRunner {
   private async handleCommands(commands: CommandBuilder, dry: boolean) {
     if (dry) {
       this.log(commands, true);
-      return commands.toArray();
+      return commands.toRunnable();
     }
     return await this.execOrTty(commands);
   }
@@ -123,6 +130,7 @@ export class ProxyRunner {
     lastProxyArgs: ShCommands,
     exec: ExecSubCommand,
     params: Params,
+    depth: number,
   ) => {
     const [config] = configs.slice(-1);
     const handler = this.getHandler(config);
@@ -131,18 +139,18 @@ export class ProxyRunner {
         isEval
           ? await handler.getEval(lastProxyArgs, config, exec)
           : handler.getTty(config).concat(lastProxyArgs)
-      ).flatMap((a) => this.enrichArgument(a, config, params, exec)),
-    )).flat().map((a) => configs.length > 1 ? `'${a}'` : a);
+      ).flatMap((a) => this.enrichArgument(a, config, params, exec, depth - 1)),
+    )).flat();
   };
 
   private exec = async (cs: CommandBuilder) => {
     this.log(cs);
-    return await this.shRunner.output(cs.toArray());
+    return await this.shRunner.output(cs.toRunnable());
   };
 
   private tty = async (cs: CommandBuilder) => {
     this.log(cs);
-    const csa = cs.toArray();
+    const csa = cs.toRunnable();
     await sh(csa);
     return csa;
   };
@@ -176,8 +184,9 @@ export class ProxyRunner {
     c: ProxyConfig,
     params: Params,
     exec: ExecSubCommand,
+    depth: number,
   ): Promise<string[]> =>
-    await this.getHandler(c).enrichArgument(a, c, params, exec);
+    await this.getHandler(c).enrichArgument(a, c, params, exec, depth);
 
   private getHandler(c: ProxyConfig): ProxyHandler<any> {
     const handler = this.handlers.find((h: ProxyHandler<any>) => h.suits(c));

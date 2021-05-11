@@ -20,6 +20,8 @@ export class DockerHandler extends ProxyHandler<DockerConfig> {
     "--rm",
     ...this.getVolumes(c),
     c.image,
+    "sh",
+    "-c", // todo
   ];
   suits = (c: DockerConfig) => c.type === "docker";
 

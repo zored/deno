@@ -2,6 +2,7 @@ import { ProxyHandler } from "../ProxyHandler.ts";
 import type { ProxyConfig } from "../ProxyConfigs.ts";
 import type { ShCommands } from "../ProxyRunner.ts";
 import { ExecSubCommand, Params } from "../ProxyRunner.ts";
+import { getNestedCommand, getNestedSingleQuote } from "../utils.ts";
 
 export interface PostgresConfig extends ProxyConfig {
   type: "postgres";
@@ -33,6 +34,7 @@ export class PostgresHandler extends ProxyHandler<PostgresConfig> {
     c: PostgresConfig,
     params: Params,
     exec: ExecSubCommand,
+    depth: number,
   ): Promise<string[]> => {
     let json = false;
     if (this.lastArgument === commandArgument) {
@@ -62,6 +64,11 @@ export class PostgresHandler extends ProxyHandler<PostgresConfig> {
       if (schema) {
         argument = `set search_path to "${schema}"; ${argument}`;
       }
+
+      argument = getNestedCommand(
+        argument.replaceAll("'", getNestedSingleQuote(depth + 1)),
+        depth,
+      );
     }
     this.lastArgument = argument;
 

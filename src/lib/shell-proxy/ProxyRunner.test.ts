@@ -79,11 +79,7 @@ test("test eval", async () => {
   const ssh = "ssh -t kek";
 
   await assertCommands(
-    [
-      ssh,
-      docker,
-      "'mongo' 'mongo://example' '--quiet' '--eval' 'rs.slaveOk(); db.people .find()'",
-    ],
+    ["ssh -t kek sudo docker run -it --net=host --rm some:1.2.3 sh -c --custom flag $'mongo mongo://example --quiet --eval rs.slaveOk(); db.people .find()'"],
     runner().run(
       "/dev/docker/mongo",
       ["db.people", ".find()"],
@@ -95,11 +91,7 @@ test("test eval", async () => {
   );
 
   await assertCommands(
-    [
-      ssh,
-      docker,
-      "hi '--some' 'value'",
-    ],
+    ["ssh -t kek sudo docker run -it --net=host --rm some:1.2.3 sh -c --custom flag $'hi $\\'--some value\\''"],
     runner().run(
       "custom_cmd",
       ["--some", "value"],
@@ -114,11 +106,7 @@ test("test eval", async () => {
     schema: "public",
   };
   await assertCommands(
-    [
-      ssh,
-      docker,
-      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select 'hi' from \"table\" where id = 1;'`,
-    ],
+    [`ssh -t kek sudo docker run -it --net=host --rm some:1.2.3 sh -c --custom flag $'psql postgresql://localhost:5432/public --no-psqlrc --pset=pager=off --quiet --command $\\'set search_path to "public"; select \\\\\\'hi\\\\\\' from "table" where id = 1;\\''`],
     runner().run(
       "pg",
       [`select 'hi' from "table" where id = 1;`],
@@ -129,11 +117,7 @@ test("test eval", async () => {
     ),
   );
   await assertCommands(
-    [
-      ssh,
-      docker,
-      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select json_agg(_zored_deno_jsonEverything) from (select * from pg_catalog.pg_tables where schemaname != 'pg_catalog' and schemaname = 'public') _zored_deno_jsonEverything;' '--no-align' '--tuples-only'`,
-    ],
+    [`ssh -t kek sudo docker run -it --net=host --rm some:1.2.3 sh -c --custom flag $'psql postgresql://localhost:5432/public --no-psqlrc --pset=pager=off --quiet --command $\\'set search_path to "public"; select json_agg(_zored_deno_jsonEverything) from (select * from pg_catalog.pg_tables where schemaname != \\\\\\'pg_catalog\\\\\\' and schemaname = \\\\\\'public\\\\\\') _zored_deno_jsonEverything;\\' --no-align --tuples-only'`],
     runner().run(
       "pg",
       [`j t`],
@@ -144,11 +128,7 @@ test("test eval", async () => {
     ),
   );
   await assertCommands(
-    [
-      ssh,
-      docker,
-      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select json_agg(_zored_deno_jsonEverything) from (select table_schema, table_name, column_name, data_type from information_schema.columns where table_name IN ('one','two') order by table_name, ordinal_position) _zored_deno_jsonEverything;' '--no-align' '--tuples-only'`,
-    ],
+    [`ssh -t kek sudo docker run -it --net=host --rm some:1.2.3 sh -c --custom flag $'psql postgresql://localhost:5432/public --no-psqlrc --pset=pager=off --quiet --command $\\'set search_path to "public"; select json_agg(_zored_deno_jsonEverything) from (select table_schema, table_name, column_name, data_type from information_schema.columns where table_name IN (\\\\\\'one\\\\\\',\\\\\\'two\\\\\\') order by table_name, ordinal_position) _zored_deno_jsonEverything;\\' --no-align --tuples-only'`],
     runner().run(
       "pg",
       [`j t one two`],
@@ -159,11 +139,7 @@ test("test eval", async () => {
     ),
   );
   await assertCommands(
-    [
-      ssh,
-      docker,
-      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select * from \"three\" limit 1'`,
-    ],
+    [`ssh -t kek sudo docker run -it --net=host --rm some:1.2.3 sh -c --custom flag $'psql postgresql://localhost:5432/public --no-psqlrc --pset=pager=off --quiet --command $\\'set search_path to "public"; select * from "three" limit 1\\''`],
     runner().run(
       "pg",
       [`f three`],
@@ -174,11 +150,7 @@ test("test eval", async () => {
     ),
   );
   await assertCommands(
-    [
-      ssh,
-      docker,
-      `'psql' 'postgresql://localhost:5432/public' '--no-psqlrc' '--pset=pager=off' '--quiet' '--command' 'set search_path to \"public\"; select COUNT(1) from \"four\"'`,
-    ],
+    [`ssh -t kek sudo docker run -it --net=host --rm some:1.2.3 sh -c --custom flag $'psql postgresql://localhost:5432/public --no-psqlrc --pset=pager=off --quiet --command $\\'set search_path to "public"; select COUNT(1) from "four"\\''`],
     runner().run(
       "pg",
       [`c four`],
@@ -243,7 +215,7 @@ test("test eval", async () => {
     ports: { 80: 123 },
   };
   await assertCommands(
-    [`kubectl port-forward web-1 123:80 `],
+    [`kubectl port-forward web-1 123:80`],
     runner().run(
       "/k8s",
       ["pfa"],

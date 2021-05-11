@@ -13,7 +13,7 @@ import { load } from "./lib/configs.ts";
 const git = new GitClient();
 
 const messageBuilders = new MessageBuilderRepo();
-const defaultRoot = load<{root: string}>("git").root;
+const defaultRoot = load<{ root: string }>("git").root;
 
 function getHistoryRepo() {
   return History.RepoFactory.create();

@@ -1,5 +1,6 @@
 import { Args, delay, green, parse, red } from "../../deps.ts";
 import { parseDuration } from "./duration.ts";
+import { debugLog } from "./utils.ts";
 
 const { args, exit } = Deno;
 

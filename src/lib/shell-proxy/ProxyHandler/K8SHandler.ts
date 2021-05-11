@@ -45,7 +45,7 @@ export class K8SHandler extends ProxyHandler<IK8SProxy> {
     }
     const head = cs[0];
     const tail = cs.slice(1);
-    return this.kubectl(c, [head, tail.join(" ")]);
+    return this.kubectl(c, [head, ...tail]);
   };
 
   suits = (c: IK8SProxy) => c.type === "k8s";

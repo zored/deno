@@ -73,6 +73,6 @@ if (a.text) {
   console.log(
     info.map((v: any) => `${v.type[0]} ${v.path} ${v.value}`).join("\n"),
   );
-  return;
+} else {
+  console.log(JSON.stringify(info));
 }
-console.log(JSON.stringify(info));

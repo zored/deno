@@ -34,6 +34,7 @@ export abstract class ProxyHandler<Config extends ProxyConfig> {
     proxyConfig: Config,
     params: Params,
     exec: ExecSubCommand,
+    depth: number,
   ) => [a];
 
   protected abstract getBase(c: Config): ShCommands;
