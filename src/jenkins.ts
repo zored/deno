@@ -2,7 +2,7 @@
 import { JenkinsApi, JenkinsApiInfo } from "./lib/jenkins.ts";
 import { load } from "./lib/configs.ts";
 import { parse } from "../deps.ts";
-import { existsSync } from "./lib/utils.ts";
+import { BasicAuthFetcher, existsSync } from "./lib/utils.ts";
 
 const secrets = load<{
   job: string;
@@ -13,8 +13,6 @@ const secrets = load<{
   buildId: string;
   nodeId: string;
 }>("jenkins");
-const promptSecret = (message: string) =>
-  new Promise<string>((r) => r(secrets.password));
 
 const { job, jobParams, host, login, cookiePath, buildId, nodeId } = secrets;
 
@@ -56,28 +54,9 @@ const main = async () => {
       break;
   }
 };
-const getInfo = async (): Promise<JenkinsApiInfo> => {
-  const cookie = cookieFile();
-  const password = cookie.length
-    ? ""
-    : await promptSecret("Enter password.") || "";
-  return {
-    host,
-    password,
-    cookie,
-    login,
-  };
-};
 
-const cookieFile = (cookie?: string): string => {
-  if (cookie === undefined) {
-    return existsSync(cookiePath) ? Deno.readTextFileSync(cookiePath) : "";
-  }
-
-  Deno.writeTextFileSync(cookiePath, cookie);
-  return cookie;
-};
-
-const api = new JenkinsApi(await getInfo());
+const api = new JenkinsApi(
+  { host, login },
+  new BasicAuthFetcher(cookiePath, login, "jenkins_password"),
+);
 await main();
-cookieFile(api.cookie);

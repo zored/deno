@@ -1,11 +1,9 @@
 import { parseQuery, QueryObject } from "./url.ts";
-import { myFetch } from "./utils.ts";
+import { Fetcher } from "./utils.ts";
 
 export interface JenkinsApiInfo {
   host: string;
   login: string;
-  password: string;
-  cookie?: string;
 }
 
 type JobName = string;
@@ -77,14 +75,12 @@ interface QueueItem {
 
 export class JenkinsApi {
   private static readonly crumbName = "Jenkins-Crumb";
-  public cookie: string | undefined = "";
   public crumb: string | undefined = "";
   private paths = new PathRetriever();
   private bluePaths = new BluePathRetriever();
   private loggedIn = false;
 
-  constructor(private info: JenkinsApiInfo) {
-    this.cookie = info.cookie;
+  constructor(private info: JenkinsApiInfo, private fetcher: Fetcher) {
   }
 
   lastBuild = async (j: JobName) =>
@@ -129,7 +125,7 @@ export class JenkinsApi {
     headers: HeadersInit = {},
   ) => {
     await this.loginIfNeeded();
-    return myFetch(`${this.info.host}/${path.replace(/^\//, "")}`, {
+    return this.fetcher.fetch(`${this.info.host}/${path.replace(/^\//, "")}`, {
       headers: {
         ...headers,
         ...this.getAuthHeaders(),
@@ -138,27 +134,11 @@ export class JenkinsApi {
     });
   };
 
-  private getAuthHeaders = (): Record<string, string> => {
-    const crumb: Record<string, string> = this.crumb
-      ? {
-        [JenkinsApi.crumbName]: this.crumb,
-      }
-      : {};
-    const Cookie = this.cookie;
-    if (Cookie && Cookie.length) {
-      return {
-        ...crumb,
-        Cookie,
-      };
-    }
-    const { login, password } = this.info;
+  private getAuthHeaders(): Record<string, string> {
+    return this.crumb ? { [JenkinsApi.crumbName]: this.crumb } : {};
+  }
 
-    return {
-      Authorization: "Basic " + btoa(`${login}:${password}`),
-    };
-  };
-
-  private loginIfNeeded = async () => {
+  private async loginIfNeeded() {
     if (this.loggedIn) {
       return;
     }
@@ -172,6 +152,5 @@ export class JenkinsApi {
       throw new Error(`Could not login`);
     }
     this.crumb = crumb;
-    this.cookie = response.headers.get("set-cookie") || "";
-  };
+  }
 }

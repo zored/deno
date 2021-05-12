@@ -83,6 +83,7 @@ type Timestamp = number;
 
 export class RateLimit {
   private runsTimestamps: Timestamp[] = [];
+
   constructor(
     private count = 20,
     private perMs = 10,
@@ -114,4 +115,60 @@ export async function wait(
   }
   await sleepMs(timeMs);
   return wait(done, timeMs);
+}
+
+export interface Fetcher {
+  fetch(input: RequestInfo, init?: RequestInit): Promise<Response>;
+}
+
+export class BasicAuthFetcher implements Fetcher {
+  constructor(
+    private cookiePath: string,
+    private login: string,
+    private passwordArgument = "p",
+  ) {
+  }
+
+  async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+    init = init || {};
+    init.headers = init.headers || {};
+    Object.assign(init.headers, this.getHeaders());
+    const response = await myFetch(input, init);
+    this.saveCookie(response.headers.get("set-cookie") || "");
+    return response;
+  }
+
+  private getPassword(): string {
+    const prefix = `-${this.passwordArgument}=`;
+    const argument = Deno.args.find((a) => a.startsWith(prefix));
+    if (!argument) {
+      throw new Error(
+        `Specify password as '${prefix}$(read -s -p "${this.passwordArgument} password: " a && echo $a)'`,
+      );
+    }
+    return argument.substring(prefix.length);
+  }
+
+  private getCookie() {
+    return existsSync(this.cookiePath)
+      ? Deno.readTextFileSync(this.cookiePath)
+      : "";
+  }
+
+  private saveCookie(cookie: string) {
+    if (cookie.trim().length) {
+      Deno.writeTextFileSync(this.cookiePath, cookie);
+    }
+  }
+
+  private getHeaders(): HeadersInit {
+    const cookie = this.getCookie();
+    const matches = cookie.match(/.*(pAuth=.+?);|$/);
+    if (matches) {
+      return { Cookie: matches[1] };
+    }
+    return {
+      Authorization: "Basic " + btoa(`${this.login}:${this.getPassword()}`),
+    };
+  }
 }
