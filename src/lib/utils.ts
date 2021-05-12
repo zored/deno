@@ -25,7 +25,13 @@ export function fromPairsArray<V, K extends string | number | symbol>(
 
 export function debugLog<T>(debugLog: T): T {
   if (Deno.args.includes("-v")) {
-    console.error(JSON.stringify(debugLog));
+    console.error(
+      JSON.stringify(
+        typeof debugLog === "function" ? debugLog() : debugLog,
+        null,
+        " ",
+      ),
+    );
   }
   return debugLog;
 }
@@ -131,15 +137,22 @@ export class BasicAuthFetcher implements Fetcher {
 
   async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
     init = init || {};
-    init.headers = init.headers || {};
-    Object.assign(init.headers, this.getHeaders());
+    const h = init.headers = init.headers || {};
+    Object.entries(this.getHeaders()).forEach(([k, v]) => {
+      if (h instanceof Headers) {
+        h.set(k, v);
+      } else {
+        (h as any)[k] = v;
+      }
+    });
+    Object.assign(init.headers);
     const response = await myFetch(input, init);
     this.saveCookie(response.headers.get("set-cookie") || "");
     return response;
   }
 
   private getPassword(): string {
-    const prefix = `-${this.passwordArgument}=`;
+    const prefix = `--${this.passwordArgument}=`;
     const argument = Deno.args.find((a) => a.startsWith(prefix));
     if (!argument) {
       throw new Error(
@@ -162,13 +175,34 @@ export class BasicAuthFetcher implements Fetcher {
   }
 
   private getHeaders(): HeadersInit {
-    const cookie = this.getCookie();
-    const matches = cookie.match(/.*(pAuth=.+?);|$/);
-    if (matches) {
-      return { Cookie: matches[1] };
+    let password: string | null;
+    try {
+      password = this.getPassword();
+    } catch (e) {
+      password = null;
     }
+
+    if (password === null) {
+      const cookie = this.getCookie();
+      const matches = cookie.match(/.*(pAuth=.+?);|$/);
+      if (matches) {
+        return { Cookie: matches[1] };
+      }
+    }
+
     return {
-      Authorization: "Basic " + btoa(`${this.login}:${this.getPassword()}`),
+      Authorization: "Basic " + btoa(`${this.login}:${password}`),
     };
+  }
+}
+
+export function parseJson(v: string) {
+  try {
+    return JSON.parse(v);
+  } catch (e) {
+    debugLog({ invalidJson: v });
+    throw new Error(
+      `Parse JSON error:\n${v.substring(0, 200)}...\n\n${e.message}`,
+    );
   }
 }
