@@ -515,7 +515,7 @@ const commands = {
         continue;
       }
 
-      let reviewResponse: Review;
+      let reviewResponse: Resulting<Review>;
       const createReviewDto = {
         revisions,
         branch: `${issueKey}#${gitlabProject}`,
@@ -531,8 +531,8 @@ const commands = {
         await sleep();
         continue;
       }
-      responses = [reviewResponse];
-      review = reviewResponse;
+      review = reviewResponse.result;
+      responses = [review];
       // const title = issueKey + " " +
       //   await getJira().getIssueSummary(issueKey);
       // await upsource.renameReview({

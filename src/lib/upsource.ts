@@ -40,7 +40,7 @@ export interface RevisionInfo {
 }
 
 export enum RevisionReachability {
-  Reachable = 1,
+  ///Users/r.akhmerov/git/github.com/zored/deno/src/lib/upsource.tsReachable = 1,
   Unknown,
   NotReachable,
 }
@@ -210,7 +210,7 @@ export class UpsourceApi {
   }
 
   async createReview(dto: CreateReviewRequest) {
-    return this.rpc<Review>("createReview", dto);
+    return this.rpc<Resulting<Review>>("createReview", dto);
   }
 
   async renameReview(dto: RenameReviewRequest) {
