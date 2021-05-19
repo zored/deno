@@ -548,13 +548,17 @@ const commands = {
     }
 
     while (true) {
+      console.error({ review });
       const unreachableRevisions =
         (await upsource.getRevisionsInReview(review.reviewId))
           .result
           .allRevisions
           .revision
           .filter((r) =>
-            ![RevisionReachability.Reachable, RevisionReachability.Unknown]
+            ![
+              RevisionReachability.Reachable,
+              // RevisionReachability.Unknown,
+            ]
               .includes(r.reachability)
           );
       if (unreachableRevisions.length === 0) {

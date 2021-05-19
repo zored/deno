@@ -1,3 +1,9 @@
+const ignoreWarnsLinks = new Set();
+JSON.parse(localStorage.ignoreWarnsLinks || "[]").forEach((v) =>
+  ignoreWarnsLinks.add(v)
+);
+let status = {};
+
 async function loadStatus() {
   const status = await (await fetch("/status")).json();
   const e = status.error;
@@ -25,6 +31,13 @@ function slash(a, b) {
 
 function warn(text, cond) {
   return cond ? `<span class="warning">${text}</span>` : text;
+}
+
+function aWarn(text, cond, url) {
+  if (ignoreWarnsLinks.has(url)) {
+    return a(text, url);
+  }
+  return a(warn(text, cond), url);
 }
 
 function opaque(s) {
@@ -65,10 +78,10 @@ function fillStatus(s) {
           300,
         ),
         (v.pipelines ?? []).map((v) =>
-          a(warn(v.status, v.status !== "success"), v.web_url)
+          aWarn(v.status, v.status !== "success", v.web_url)
         ),
         (v.reviews ?? []).map((v) =>
-          a(warn(v.completed ? "готово" : "ревью", !v.completed), v.url)
+          aWarn(v.completed ? "готово" : "ревью", !v.completed, v.url)
         ),
       ];
     }).map((v) =>
@@ -86,7 +99,8 @@ function loading(visible) {
 
 async function update() {
   loading(true);
-  fillStatus(await loadStatus());
+  status = await loadStatus();
+  fillStatus(status);
   loading(false);
 }
 
@@ -100,3 +114,34 @@ window.onload = async () => {
   await update();
   setInterval(update, 300000);
 };
+
+(() => {
+  let active = false;
+  const toggle = ({ key }, v) => {
+    console.log({ key });
+    if (key === "Alt") {
+      active = v;
+    }
+  };
+  window.addEventListener("keydown", (e) => toggle(e, true));
+  window.addEventListener("keyup", (e) => toggle(e, false));
+  window.addEventListener("mousedown", (e) => {
+    if (!active) {
+      return;
+    }
+    const href = e.target.closest("a")?.href;
+    console.log(href);
+    if (!href) {
+      return;
+    }
+
+    if (ignoreWarnsLinks.has(href)) {
+      ignoreWarnsLinks.delete(href);
+    } else {
+      ignoreWarnsLinks.add(href);
+    }
+    localStorage.ignoreWarnsLinks = JSON.stringify([...ignoreWarnsLinks]);
+    fillStatus(status);
+    e.preventDefault();
+  });
+})();

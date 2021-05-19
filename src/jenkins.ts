@@ -19,7 +19,8 @@ const { job, jobParams, host, login, cookiePath, buildId, nodeId } = secrets;
 const build = { job, buildId };
 
 const main = async () => {
-  switch (parse(Deno.args)._[0]) {
+  const args = parse(Deno.args)._.filter((v) => !!v);
+  switch (args[0]) {
     case "build":
       const queueItemId = await api.buildWithParameters(job, jobParams);
       console.log(await api.getQueueItem(queueItemId));
@@ -45,7 +46,7 @@ const main = async () => {
       break;
     default:
     case "info":
-      const number = parseInt(Deno.args[1]);
+      const number = parseInt(args[1] + "");
       console.log(
         JSON.stringify(
           await (number ? api.getBuild(job, number) : api.lastBuild(job)),
