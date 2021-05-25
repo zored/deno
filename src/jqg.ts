@@ -44,7 +44,7 @@ const checkers: Checker[] = [];
 const insensitive = a.insensitive ?? false;
 const contains = a.contains ?? a._[0];
 if (contains !== undefined) {
-  checkers.push(new Contains(contains, insensitive));
+  checkers.push(new Contains(contains + "", insensitive));
 }
 if (a.regexp !== undefined) {
   checkers.push(

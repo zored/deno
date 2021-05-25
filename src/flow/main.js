@@ -13,8 +13,8 @@ async function loadStatus() {
   return status;
 }
 
-function a(text, link) {
-  return `<a target="_blank" href="${link}">${text}</a>`;
+function a(text, link, title = "") {
+  return `<a target="_blank" href="${link}" title="${title}">${text}</a>`;
 }
 
 function maxWidth(html, v) {
@@ -33,11 +33,11 @@ function warn(text, cond) {
   return cond ? `<span class="warning">${text}</span>` : text;
 }
 
-function aWarn(text, cond, url) {
+function aWarn(title, cond, url) {
   if (ignoreWarnsLinks.has(url)) {
-    return a(text, url);
+    cond = false;
   }
-  return a(warn(text, cond), url);
+  return a(warn((cond ? "⛔️" : "👍") + title.substring(0, 2), cond), url, title);
 }
 
 function opaque(s) {
@@ -79,10 +79,10 @@ function fillStatus(s) {
         ),
         (v.pipelines ?? []).map((v) =>
           aWarn(v.status, v.status !== "success", v.web_url)
-        ),
+        ).join(" "),
         (v.reviews ?? []).map((v) =>
           aWarn(v.completed ? "готово" : "ревью", !v.completed, v.url)
-        ),
+        ).join(" "),
       ];
     }).map((v) =>
       v.map((v) =>

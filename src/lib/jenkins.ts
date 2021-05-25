@@ -6,14 +6,14 @@ export interface JenkinsApiInfo {
   login: string;
 }
 
-type JobName = string;
+export type JobName = string;
 
-interface BuildAddress {
+export interface BuildAddress {
   job: JobName;
   buildId: number;
 }
 
-interface NodeAddress {
+export interface NodeAddress {
   build: BuildAddress;
   nodeId: number;
 }
@@ -22,7 +22,7 @@ type QueueItemId = number;
 
 export class PathRetriever {
   lastBuild = (j: JobName) => `${this.job(j)}/lastBuild/api/json`;
-  getBuildJson = (j: JobName, b: BuildNumber) => `${this.job(j)}/${b}/api/json`;
+  getBuildJson = (b: BuildAddress) => `${this.build(b)}/api/json`;
   builds = (j: JobName) => `${this.job(j)}/wfapi/runs`;
   nodeDescribe = (n: NodeAddress) => `${this.node(n)}/wfapi/describe`;
   buildParams = (j: JobName) => `${this.job(j)}/buildWithParameters`;
@@ -50,6 +50,7 @@ export class PathRetriever {
   queueItem = (id: QueueItemId) => `/queue/item/${id}/api/json`;
 
   private job = (j: JobName) => `/job/${j}`;
+  private build = (a: BuildAddress) => `${this.job(a.job)}/${a.buildId}`;
 
   private node = (n: NodeAddress) =>
     `${this.job(n.build.job)}/${n.build.job}/execution/node/${n.nodeId}`;
@@ -67,10 +68,17 @@ class BluePathRetriever {
 
 type BuildNumber = number;
 
-interface QueueItem {
-  executable: {
+export interface QueueItem {
+  executable?: {
     number: BuildNumber;
   };
+}
+
+export interface Build {
+  building: boolean;
+  number: number;
+  result: string;
+  url: string;
 }
 
 export class JenkinsApi {
@@ -83,10 +91,10 @@ export class JenkinsApi {
   constructor(private info: JenkinsApiInfo, private fetcher: Fetcher) {
   }
 
-  lastBuild = async (j: JobName) =>
+  getLastBuild = async (j: JobName): Promise<Build> =>
     this.json(this.get(this.paths.lastBuild(j)));
-  getBuild = async (j: JobName, b: BuildNumber) =>
-    this.json(this.get(this.paths.getBuildJson(j, b)));
+  getBuild = async (b: BuildAddress): Promise<Build> =>
+    this.json(this.get(this.paths.getBuildJson(b)));
   pipelines = async (j: JobName) => this.json(this.get(this.paths.builds(j)));
   pipelineNode = async (n: NodeAddress) =>
     this.json(this.get(this.paths.nodeDescribe(n)));
@@ -119,7 +127,7 @@ export class JenkinsApi {
 
   private get = async (path: string) => this.fetch(path);
 
-  private fetch = async (
+  fetch = async (
     path: string,
     request: RequestInit = {},
     headers: HeadersInit = {},
@@ -149,7 +157,7 @@ export class JenkinsApi {
     );
     const [crumbName, crumb] = (await response.text()).split(":");
     if (crumbName !== JenkinsApi.crumbName || !crumb) {
-      throw new Error(`Could not login`);
+      throw new Error(`Could not login.`);
     }
     this.crumb = crumb;
   }

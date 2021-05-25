@@ -115,12 +115,17 @@ export class RateLimit {
 export async function wait(
   done: () => Promise<boolean>,
   timeMs = 1000,
+  attempts = Infinity,
 ): Promise<void> {
   if (await done()) {
     return;
   }
   await sleepMs(timeMs);
-  return wait(done, timeMs);
+
+  if (attempts <= 1) {
+    return;
+  }
+  await wait(done, timeMs, attempts - 1);
 }
 
 export interface Fetcher {
@@ -205,4 +210,8 @@ export function parseJson(v: string) {
       `Parse JSON error:\n${v.substring(0, 200)}...\n\n${e.message}`,
     );
   }
+}
+
+export function logJson(json: any, pretty = false) {
+  console.log(pretty ? JSON.stringify(json, null, " ") : JSON.stringify(json));
 }

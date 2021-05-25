@@ -40,7 +40,7 @@ export interface RevisionInfo {
 }
 
 export enum RevisionReachability {
-  ///Users/r.akhmerov/git/github.com/zored/deno/src/lib/upsource.tsReachable = 1,
+  Reachable = 1,
   Unknown,
   NotReachable,
 }
@@ -148,11 +148,15 @@ export class UpsourceService {
       (await this.api.getCurrentUser()).result.userId;
   }
 
-  async getAllMyReviews({ filter = "", limit = 100, onlyOpen = true } = {}) {
-    return this.api.getReviews({
+  async getAllMyReviews({ filter = "", limit = 100 } = {}) {
+    return this.getReviews({
+      query: `(state: open and (reviewer: me or author: me)) and (${filter})`,
       limit,
-      query: `(state: open and (reviewer: me or author: me)) ${filter}`,
     });
+  }
+
+  async getReviews({ query = "", limit = 100 } = {}) {
+    return this.api.getReviews({ limit, query });
   }
 
   async output(reviews: Review[]) {

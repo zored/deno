@@ -19,10 +19,21 @@ interface Pipeline {
 // https://docs.gitlab.com/ee/api
 export class GitlabApi {
   constructor(
-    private host: string,
+    private readonly host: string,
     private token: string,
     private rateLimit = new RateLimit(100, 300),
   ) {
+    this.host = this.host.replace(/\/+$/, "");
+  }
+
+  parseProjects(s: string): ProjectId[] {
+    const matches = s.matchAll(new RegExp(`${this.host}/(.*?)(/-|\])`, "g"));
+    if (!matches) {
+      return [];
+    }
+    return [...new Set([...matches].map((v) => v[1]))].filter((v) =>
+      v.includes("/")
+    );
   }
 
   getPipelines = async (

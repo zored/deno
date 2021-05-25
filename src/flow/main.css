@@ -33,6 +33,11 @@ a:hover {
     text-align: left;
 }
 
+#status_table td:nth-child(3), #status_table td:nth-child(4) {
+    width: 130px;
+    text-align: center;
+}
+
 #status_table th {
     text-align: center;
 }

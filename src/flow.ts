@@ -143,7 +143,7 @@ const commands = {
     await print(output);
   },
 
-  async statusServe({ p = 8000 }) {
+  async statusServe({ p = 8000, i = [] as string[] }) {
     console.log(`Listening: http://localhost:${p}/`);
     const c = serve({ port: p });
     for await (const req of c) {
@@ -154,12 +154,15 @@ const commands = {
       switch (url) {
         case "/status":
           headers["content-type"] = "application/json";
-          try {
-            body = JSON.stringify(await commands._getStatusInfo());
-          } catch (e) {
-            const error = e instanceof Error ? e.message : JSON.stringify(e);
-            console.error(error);
-            body = JSON.stringify({ error });
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              body = JSON.stringify(await commands._getStatusInfo(i));
+              break;
+            } catch (e) {
+              const error = e instanceof Error ? e.message : JSON.stringify(e);
+              console.error({ error, attempt });
+              body = JSON.stringify({ error });
+            }
           }
           break;
         case "/":
@@ -219,13 +222,14 @@ const commands = {
         fields: ["parent"],
       })).map((v: any) => v.key);
 
-    const filter: string =
-      (onlyIssueKeys.length
-        ? onlyIssueKeys.map((v) => `and ${v}`)
-        : jiraIssueKeys.map((v) => `or ${v}`))
-        .join(" ");
-    const reviews =
-      (await upsource.getAllMyReviews({ filter })).result.reviews || [];
+    const reviews = onlyIssueKeys.length
+      ? (await upsource.getReviews({
+        query: onlyIssueKeys.join(" or "),
+      })).result.reviews || []
+      : (await upsource.getAllMyReviews({
+        filter: jiraIssueKeys.join(" or "),
+      })).result.reviews || [];
+
     const revisionsForReview = await Promise.all(
       reviews.map((r) => upsourceApi.getRevisionsInReview(r.reviewId)),
     );
@@ -322,6 +326,7 @@ const commands = {
             "parent",
             "lastViewed",
             "assignee",
+            "comment",
             automatedInfoField,
           ], [
             "changelog",
@@ -379,12 +384,14 @@ const commands = {
             fields: {
               summary,
               status: { name: status },
-              assignee: { displayName: assignee },
               [automatedInfoField]: automatedInfo,
+              comment: { comments },
             },
 
             developers,
           } = t;
+
+          const assignee = t.fields?.assignee?.displayName;
 
           const statusIcon = statusConfig.icons[status];
           const issue: any = {
@@ -410,13 +417,13 @@ const commands = {
 
           const r: any = { issue };
 
-          const reviews = reviewsByKey[key];
-          if (reviews && reviews.length > 0) {
-            r.reviews = await upsource.output(reviews);
-            const ref = key;
+          const reviews = reviewsByKey[key] || [];
+          r.reviews = await upsource.output(reviews);
+          const ref = key;
 
-            const pipelines = (await Promise.all(
-              reviews
+          const pipelines = (await Promise.all(
+            [
+              ...reviews
                 .flatMap((r) =>
                   projectIdsByReviewId[getStringReviewId(r.reviewId)] ?? []
                 )
@@ -424,26 +431,29 @@ const commands = {
                   vcsRepoUrlByUpsourceProjectId[upsourceProjectId]
                 )
                 .filter((v): v is string => !!v)
-                .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl))
-                .filter((p): p is string => p !== null)
-                .reduce((a, p) => {
-                  if (!a.includes(p)) {
-                    a.push(p);
-                  }
-                  return a;
-                }, [] as string[])
-                .map((p) =>
-                  gitlab.getPipelines(p, { ref, per_page: 1, page: 1 })
-                ),
-            ))
-              .flat()
-              .map(({ status, web_url }) => ({
-                status,
-                web_url,
-              }));
-            if (pipelines.length) {
-              r.pipelines = pipelines;
-            }
+                .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl)),
+              ...comments.flatMap((c: any) =>
+                gitlab.parseProjects(c.body + "")
+              ),
+            ]
+              .filter((p): p is string => p !== null)
+              .reduce((a, p) => {
+                if (!a.includes(p)) {
+                  a.push(p);
+                }
+                return a;
+              }, [] as string[])
+              .map((p) => {
+                return gitlab.getPipelines(p, { ref, per_page: 1, page: 1 });
+              }),
+          ))
+            .flat()
+            .map((v) => ({
+              status: v.status,
+              web_url: v.web_url,
+            }));
+          if (pipelines.length) {
+            r.pipelines = pipelines;
           }
           return [key, r];
         }),
@@ -452,10 +462,12 @@ const commands = {
     return fromPairs(revert ? result.reverse() : result);
   },
 
-  async putBranchReview({ w, i }: any) {
+  async putBranchReview({ w, i, h }: any) {
     const issueKey: string = i || await getGit().getCurrentBranch(),
       originUrl = (await getGit().getOriginUrl()),
-      revisions = (await getGit().getCurrentBranchHashes()),
+      revisions = h
+        ? (typeof h === "string" ? [h] : (Array.isArray(h) ? h : []))
+        : (await getGit().getCurrentBranchHashes()),
       matches = originUrl.match(/\/([^\/]*).git$/);
     if (!matches) {
       throw new Error(`Invalid remote url: ${originUrl}`);

@@ -1,63 +1,133 @@
 #!/usr/bin/env deno run -A
-import { JenkinsApi, JenkinsApiInfo } from "./lib/jenkins.ts";
+import {
+  Build,
+  BuildAddress,
+  JenkinsApi,
+  NodeAddress,
+  QueueItem,
+} from "./lib/jenkins.ts";
 import { load } from "./lib/configs.ts";
-import { parse } from "../deps.ts";
-import { BasicAuthFetcher, existsSync } from "./lib/utils.ts";
+import { BasicAuthFetcher, logJson, wait } from "./lib/utils.ts";
+import { QueryObject } from "./lib/url.ts";
+import { Commands, sh } from "./lib/command.ts";
 
-const secrets = load<{
+const { job, jobParams, host, login, cookiePath, buildId, nodeId } = load<{
   job: string;
-  jobParams: string;
+  jobParams: QueryObject;
   host: string;
   login: string;
   cookiePath: string;
-  buildId: string;
-  nodeId: string;
+  buildId: number;
+  nodeId: number;
 }>("jenkins");
-
-const { job, jobParams, host, login, cookiePath, buildId, nodeId } = secrets;
-
-const build = { job, buildId };
-
-const main = async () => {
-  const args = parse(Deno.args)._.filter((v) => !!v);
-  switch (args[0]) {
-    case "build":
-      const queueItemId = await api.buildWithParameters(job, jobParams);
-      console.log(await api.getQueueItem(queueItemId));
-      break;
-    case "pipeline-nodes":
-      console.log(JSON.stringify(await api.pipelineNodes(build)));
-      break;
-    case "pipeline-node-steps":
-      console.log(
-        JSON.stringify(await api.pipelineNodeSteps({ build, nodeId })),
-      );
-      break;
-    case "pipeline-node-log":
-      console.log(
-        await api.pipelineNodeLog({
-          build,
-          nodeId,
-        }),
-      );
-      break;
-    case "pipeline":
-      console.log(JSON.stringify(await api.pipelines(job)));
-      break;
-    default:
-    case "info":
-      const number = parseInt(args[1] + "");
-      console.log(
-        JSON.stringify(
-          await (number ? api.getBuild(job, number) : api.lastBuild(job)),
-        ),
-      );
-      break;
-  }
-};
-
+const build: BuildAddress = { job, buildId };
 const api = new JenkinsApi(
   { host, login },
   new BasicAuthFetcher(cookiePath, login, "jenkins_password"),
 );
-await main();
+
+type Arg = number | string;
+const parse = {
+  path(v: Arg): string {
+    return v + "";
+  },
+  job(v: Arg): string {
+    if (!v) {
+      throw new Error("Pass job argument!");
+    }
+    return v + "";
+  },
+  jobParams(v: Arg): QueryObject {
+    return JSON.parse(v + "") as QueryObject;
+  },
+  buildId(v: Arg): number {
+    return parseInt(v + "");
+  },
+  nodeId(v: Arg): number {
+    return parseInt(v + "");
+  },
+  buildAddress(job: Arg, buildId: Arg): BuildAddress {
+    return {
+      job: this.job(job),
+      buildId: this.buildId(buildId),
+    };
+  },
+  nodeAddress(nodeId: Arg, build: BuildAddress): NodeAddress {
+    return {
+      nodeId: this.nodeId(nodeId),
+      build,
+    };
+  },
+};
+
+async function waitBuild(
+  buildAddress: BuildAddress,
+  open = false,
+): Promise<Build> {
+  console.error(`Waiting for build ${JSON.stringify(buildAddress)}...`);
+  let build: Build | undefined;
+  await wait(async () => {
+    build = await api.getBuild(buildAddress);
+    return !build.building;
+  });
+  if (!build) {
+    throw new Error("Could not get build.");
+  }
+
+  if (open) {
+    await sh(`open ${build.url}`);
+  }
+  return build;
+}
+
+await new Commands({
+  build: async function ({ w = false, o = false, _: [j, jobParams] }) {
+    const queueItemId = await api.buildWithParameters(
+      parse.job(j),
+      parse.jobParams(jobParams),
+    );
+    let buildId: number | undefined = undefined;
+    let queueItem: QueueItem | undefined = undefined;
+    await wait(async () => {
+      queueItem = await api.getQueueItem(queueItemId);
+      buildId = queueItem?.executable?.number;
+      return buildId !== undefined;
+    });
+    if (buildId === undefined) {
+      throw new Error("No build number in queue!");
+    }
+    const buildAddress = { job, buildId };
+    if (w) {
+      await waitBuild(buildAddress, o);
+    }
+    logJson({ queueItem, build: await api.getBuild(buildAddress) });
+  },
+  async wait({ o = false, _: [job, buildId] }) {
+    logJson(await waitBuild(parse.buildAddress(job, buildId), o));
+  },
+  async nodes() {
+    logJson(await api.pipelineNodes(build));
+  },
+  async steps({ _: [nodeId, job, buildId] }) {
+    logJson(await parse.nodeAddress(nodeId, parse.buildAddress(job, buildId)));
+  },
+  async log({ _: [nodeId, job, buildId] }) {
+    console.log(
+      await api.pipelineNodeLog(
+        parse.nodeAddress(nodeId, parse.buildAddress(job, buildId)),
+      ),
+    );
+  },
+  async pipeline({ _: [job] }) {
+    logJson(await api.pipelines(parse.job(job)));
+  },
+  async info({ _: [j, n] }) {
+    const build = parse.buildAddress(j, n);
+    logJson(
+      await (build.buildId ? api.getBuild(build) : api.getLastBuild(build.job)),
+    );
+  },
+  async fetch({ _: [path] }) {
+    console.log(await (await api.fetch(parse.path(path))).text());
+  },
+}).runAndExit();
