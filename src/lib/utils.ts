@@ -1,4 +1,5 @@
 import { chunk } from "../../deps.ts";
+import { print } from "./print.ts";
 
 export async function sleepMs(ms = 1) {
   return new Promise((r) => setTimeout(r, ms));
@@ -110,6 +111,28 @@ export class RateLimit {
 
     this.runsTimestamps.push(now);
   }
+}
+
+export function withProgress(
+  f: () => Promise<{ done: boolean; percentInt: number }>,
+): () => Promise<boolean> {
+  let dotsAmount = 1;
+  return async () => {
+    const { done, percentInt } = await f();
+    await print(`\r`, Deno.stderr);
+    if (done) {
+      return true;
+    }
+    const dots = ".".repeat(dotsAmount);
+    if ((++dotsAmount) > 3) {
+      dotsAmount = 1;
+    }
+    const label = percentInt > 100
+      ? "exceeding"
+      : (percentInt <= 0 ? "starting" : `${percentInt}%`);
+    await print(`Progress: ${label}${dots}`, Deno.stderr);
+    return false;
+  };
 }
 
 export async function wait(

@@ -7,9 +7,10 @@ import {
   QueueItem,
 } from "./lib/jenkins.ts";
 import { load } from "./lib/configs.ts";
-import { BasicAuthFetcher, logJson, wait } from "./lib/utils.ts";
+import { BasicAuthFetcher, logJson, wait, withProgress } from "./lib/utils.ts";
 import { QueryObject } from "./lib/url.ts";
 import { Commands, sh } from "./lib/command.ts";
+import { print } from "./lib/print.ts";
 
 const { job, jobParams, host, login, cookiePath, buildId, nodeId } = load<{
   job: string;
@@ -66,10 +67,13 @@ async function waitBuild(
 ): Promise<Build> {
   console.error(`Waiting for build ${JSON.stringify(buildAddress)}...`);
   let build: Build | undefined;
-  await wait(async () => {
+  await wait(withProgress(async () => {
     build = await api.getBuild(buildAddress);
-    return !build.building;
-  });
+    const timestamp = (new Date()).getTime();
+    const duration = timestamp - build.timestamp;
+    const percentInt = Math.floor((duration / build.estimatedDuration) * 100);
+    return { done: !build.building, percentInt };
+  }));
   if (!build) {
     throw new Error("Could not get build.");
   }

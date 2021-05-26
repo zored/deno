@@ -79,6 +79,8 @@ export interface Build {
   number: number;
   result: string;
   url: string;
+  timestamp: number;
+  estimatedDuration: number;
 }
 
 export class JenkinsApi {
