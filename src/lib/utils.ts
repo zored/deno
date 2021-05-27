@@ -117,14 +117,15 @@ export function withProgress(
   f: () => Promise<{ done: boolean; percentInt: number }>,
 ): () => Promise<boolean> {
   let dotsAmount = 1;
+  const dotsLimit = 3;
   return async () => {
     const { done, percentInt } = await f();
     await print(`\r`, Deno.stderr);
     if (done) {
       return true;
     }
-    const dots = ".".repeat(dotsAmount);
-    if ((++dotsAmount) > 3) {
+    const dots = ".".repeat(dotsAmount) + " ".repeat(dotsLimit - dotsAmount);
+    if ((++dotsAmount) > dotsLimit) {
       dotsAmount = 1;
     }
     const label = percentInt > 100

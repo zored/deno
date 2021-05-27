@@ -448,6 +448,7 @@ const commands = {
               }),
           ))
             .flat()
+            .filter((v) => !!v.status)
             .map((v) => ({
               status: v.status,
               web_url: v.web_url,

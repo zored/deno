@@ -69,10 +69,33 @@ async function waitBuild(
   let build: Build | undefined;
   await wait(withProgress(async () => {
     build = await api.getBuild(buildAddress);
-    const timestamp = (new Date()).getTime();
-    const duration = timestamp - build.timestamp;
+    const done = !build.building;
+    if (done) {
+      return { done, percentInt: 100 };
+    }
+    const nodes = await api.getBuildNodes(buildAddress);
+    const status = nodes.map((n) => {
+      switch (n.state) {
+        case "FINISHED":
+          return "👍";
+        case "RUNNING":
+          return "🏃";
+        case "NOT_BUILT":
+          return "🙅";
+        case "SKIPPED":
+          return "⏩";
+        case "FAILURE":
+          return "⛔️";
+        case "ABORTED":
+          return "⏹";
+        default:
+          return "⏳";
+      }
+    }).join(" ");
+    const duration = nodes.reduce((a, n) => a + n.durationInMillis, 0);
+    await print("  " + status, Deno.stderr);
     const percentInt = Math.floor((duration / build.estimatedDuration) * 100);
-    return { done: !build.building, percentInt };
+    return { done, percentInt };
   }));
   if (!build) {
     throw new Error("Could not get build.");
@@ -109,8 +132,8 @@ await new Commands({
   async wait({ o = false, _: [job, buildId] }) {
     logJson(await waitBuild(parse.buildAddress(job, buildId), o));
   },
-  async nodes() {
-    logJson(await api.pipelineNodes(build));
+  async nodes({ _: [job, buildId] }) {
+    logJson(await api.getBuildNodes(parse.buildAddress(job, buildId)));
   },
   async steps({ _: [nodeId, job, buildId] }) {
     logJson(await parse.nodeAddress(nodeId, parse.buildAddress(job, buildId)));

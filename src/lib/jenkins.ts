@@ -63,7 +63,7 @@ class BluePathRetriever {
   private job = (j: JobName) =>
     `/blue/rest/organizations/jenkins/pipelines/${j}`;
   private build = (b: BuildAddress) => `${this.job(b.job)}/runs/${b.buildId}`;
-  private node = (n: NodeAddress) => `${this.build(n.build)}/nodes/${n.nodeId}`;
+  node = (n: NodeAddress) => `${this.nodes(n.build)}/${n.nodeId}`;
 }
 
 type BuildNumber = number;
@@ -81,6 +81,18 @@ export interface Build {
   url: string;
   timestamp: number;
   estimatedDuration: number;
+}
+
+export interface Node {
+  state:
+    | "FINISHED"
+    | "SKIPPED"
+    | "NOT_BUILT"
+    | "RUNNING"
+    | "FAILURE"
+    | "ABORTED"
+    | null;
+  durationInMillis: number;
 }
 
 export class JenkinsApi {
@@ -104,7 +116,7 @@ export class JenkinsApi {
     this.text(this.get(this.bluePaths.nodeLog(a)));
   pipelineNodeSteps = async (n: NodeAddress) =>
     this.json(this.get(this.bluePaths.steps(n)));
-  pipelineNodes = async (b: BuildAddress) =>
+  getBuildNodes = async (b: BuildAddress): Promise<Node[]> =>
     this.json(this.get(this.bluePaths.nodes(b)));
   getQueueItem = async (id: QueueItemId): Promise<QueueItem> =>
     this.json(this.get(this.paths.queueItem(id)));
