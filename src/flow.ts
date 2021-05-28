@@ -210,9 +210,14 @@ const commands = {
       upsource = new UpsourceService(upsourceApi);
 
     const vcsRepoUrlByUpsourceProjectId = fromPairs(
-      (await upsourceApi.getProjectVcsLinks({
-        projectId: load<{ projectId: string }>("upsource").projectId,
-      })).result.repo.map((v) => [v.id, v.url[0]]),
+      (await Promise.all(
+        load<{ projectIds: string[] }>("upsource").projectIds.map(
+          async (projectId) =>
+            (await upsourceApi.getProjectVcsLinks({
+              projectId,
+            })).result.repo.map((v) => [v.id, v.url[0]]),
+        ),
+      )).flatMap((v) => v),
     ) as Record<string, string>;
 
     const jiraIssueKeys: IssueKey[] = onlyIssueKeys.length
@@ -463,7 +468,9 @@ const commands = {
     return fromPairs(revert ? result.reverse() : result);
   },
 
-  async putBranchReview({ w, i, h }: any) {
+  async putBranchReview({ w, i, h, p }: any) {
+    const projectId = p ||
+      load<{ projectIds: string[] }>("upsource").projectIds[0];
     const issueKey: string = i || await getGit().getCurrentBranch(),
       originUrl = (await getGit().getOriginUrl()),
       revisions = h
@@ -532,7 +539,7 @@ const commands = {
       const createReviewDto = {
         revisions,
         branch: `${issueKey}#${gitlabProject}`,
-        projectId: load<{ projectId: string }>("upsource").projectId,
+        projectId,
       };
       try {
         reviewResponse = await upsource.createReview(createReviewDto);

@@ -84,6 +84,7 @@ export interface Build {
 }
 
 export interface Node {
+  type: "STAGE" | "PARALLEL";
   state:
     | "FINISHED"
     | "SKIPPED"
@@ -92,6 +93,9 @@ export interface Node {
     | "FAILURE"
     | "ABORTED"
     | null;
+  actions: {
+    link: { href: string };
+  }[];
   durationInMillis: number;
 }
 

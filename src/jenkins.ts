@@ -74,7 +74,7 @@ async function waitBuild(
       return { done, percentInt: 100 };
     }
     const nodes = await api.getBuildNodes(buildAddress);
-    const status = nodes.map((n) => {
+    const status = nodes.filter((n) => n.type === "STAGE").map((n) => {
       switch (n.state) {
         case "FINISHED":
           return "👍";
