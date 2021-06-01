@@ -154,7 +154,7 @@ Some Jira actions.
 
 - Cache and retrieve Jira issue names.
 - Jira API
-  [via browser cache](./src/chrome-extension/jira-cookie-sender/README.md).
+  [via browser cache](src/chrome-extension/session-saver/README.md).
 
 ## shell-completion
 

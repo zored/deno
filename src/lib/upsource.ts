@@ -1,5 +1,5 @@
 import { load } from "./configs.ts";
-import { myFetch } from "./utils.ts";
+import { CookieFetcher, Fetcher } from "./utils.ts";
 
 export interface ReviewsRequest {
   limit: number;
@@ -149,8 +149,9 @@ export class UpsourceService {
   }
 
   async getAllMyReviews({ filter = "", limit = 100 } = {}) {
+    filter = filter ? ` and (${filter})` : "";
     return this.getReviews({
-      query: `(state: open and (reviewer: me or author: me)) and (${filter})`,
+      query: `(state: open and (reviewer: me or author: me)) ${filter}`,
       limit,
     });
   }
@@ -193,15 +194,22 @@ export class UpsourceService {
 }
 
 export function createUpsourceApi() {
-  const c = load<{ authorization: string; host: string }>("upsource");
-  return new UpsourceApi(c.host, c.authorization);
+  const c = load<{ authorization: string; host: string; cookie: string }>(
+    "upsource",
+  );
+  return new UpsourceApi(
+    c.host,
+    c.authorization,
+    new CookieFetcher(() => c.cookie),
+  );
 }
 
 // https://upsource.jetbrains.com/~api_doc/reference/Service.html#messages.UpsourceRPC
 export class UpsourceApi {
   constructor(
     public host: string,
-    private authorizationHeader: string,
+    private authorization: string,
+    private fetcher: Fetcher,
   ) {
   }
 
@@ -248,14 +256,18 @@ export class UpsourceApi {
   }
 
   async rpc<T>(name: string, body: object): Promise<T> {
-    const json: T | Err = await (await myFetch(`${this.host}/~rpc/${name}`, {
-      method: "POST",
-      headers: {
-        authorization: this.authorizationHeader,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    })).json();
+    const headers: HeadersInit = {
+      "content-type": "application/json",
+    };
+    if (this.authorization) {
+      headers["authorization"] = this.authorization;
+    }
+    const json: T | Err =
+      await (await this.fetcher.fetch(`${this.host}/~rpc/${name}`, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(body),
+      })).json();
 
     if (UpsourceApi.isErr(json)) {
       throw new UpsourceError(json);

@@ -1,16 +1,22 @@
 "use strict";
 chrome.webNavigation.onDOMContentLoaded.addListener(onload);
 
+const urlNeedles = {
+  jira: "https://jira.",
+  upsource: "https://upsource.",
+};
+
 async function onload({ url }) {
   if (!await shouldUpdate(url)) {
     return;
   }
   const cookies = await chromeCookiesGetAllSecureByUrl(url);
-  console.log({ cookies });
-  const result = await (await fetch("http://localhost:11536", {
-    method: "POST",
-    body: cookies.map((c) => `${c.name}=${c.value}`).join("; "),
-  })).text();
+  console.debug({ cookies });
+  const result =
+    await (await fetch(`http://localhost:11536?siteId=${getSiteId(url)}`, {
+      method: "POST",
+      body: cookies.map((c) => `${c.name}=${c.value}`).join("; "),
+    })).text();
   if (result !== "ok") {
     console.error("could not write cookies", result);
     return;
@@ -24,19 +30,19 @@ async function shouldUpdate(url) {
     await chromeStorageLocalSetKey(now.toString());
     return true;
   };
-  if (url.includes("#forceCookieReset")) {
+  if (url.includes("#sss")) {
     return await ok();
   }
-  if (!url.includes("https://jira.")) {
+  if (!getSiteId(url)) {
     return false;
   }
 
   const dateString = await chromeStorageLocalGetKey(),
     date = dateString ? new Date(dateString) : now,
-    day = 1000 * 60 * 60 * 24;
+    hour = 1000 * 60 * 60;
 
-  if (now.getTime() - date.getTime() < day) {
-    console.log(["less than 1 day passed", date]);
+  if (now.getTime() - date.getTime() < hour) {
+    console.debug(["less than 1 hour passed", date]);
     return false;
   }
 
@@ -70,4 +76,11 @@ function promisify(f, o) {
       args.push((r) => resolve(r));
       f.call(o || this, ...args);
     });
+}
+
+function getSiteId(url) {
+  return Object
+    .entries(urlNeedles)
+    .filter(([, v]) => url.includes(v))
+    .map(([k]) => k)[0];
 }

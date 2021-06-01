@@ -45,12 +45,26 @@ export class JiraCookieListener {
         await Deno.readAll(request.body),
       );
 
-      const auth: { jira: { cookies: string } } = JSON.parse(
-        readTextFileSync(path),
-      );
-      auth.jira.cookies = cookies;
+      const url = request.url;
+
+      const matches = url.match(/siteId=(.+?)(&|$)/);
+      if (!matches) {
+        throw new Error(`siteId is not provided`);
+      }
+      const siteId = matches[1] as "jira" | "upsource";
+      if (!["jira", "upsource"].includes(siteId)) {
+        throw new Error(`siteId '${siteId}' is invalid`);
+      }
+
+      const auth: { jira: { cookies: string }; upsource: { cookies: string } } =
+        JSON.parse(
+          readTextFileSync(path),
+        );
+      const site = auth[siteId] || {};
+      auth[siteId] = site;
+      site.cookies = cookies;
       Deno.writeTextFileSync(path, JSON.stringify(auth));
-      console.log("wrote cookies");
+      console.debug(`wrote '${siteId}' cookies`);
 
       request.respond({
         headers: new Headers({

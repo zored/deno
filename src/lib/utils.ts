@@ -156,6 +156,38 @@ export interface Fetcher {
   fetch(input: RequestInfo, init?: RequestInit): Promise<Response>;
 }
 
+export class CookieFetcher implements Fetcher {
+  constructor(private cookie: () => string) {
+  }
+
+  async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+    setHeader(init?.headers, "cookie", this.cookie());
+    return await myFetch(input, init);
+  }
+}
+
+function setHeader(
+  h: HeadersInit | undefined,
+  k: string,
+  v: string,
+): HeadersInit {
+  if (!h) {
+    return { [k]: v };
+  }
+  if (h instanceof Headers) {
+    h.set(k, v);
+    return h;
+  }
+
+  if (Array.isArray(h)) {
+    h.push([k, v]);
+    return h;
+  }
+
+  (h as any)[k] = v;
+  return h;
+}
+
 export class BasicAuthFetcher implements Fetcher {
   constructor(
     private cookiePath: string,
@@ -167,13 +199,7 @@ export class BasicAuthFetcher implements Fetcher {
   async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
     init = init || {};
     const h = init.headers = init.headers || {};
-    Object.entries(this.getHeaders()).forEach(([k, v]) => {
-      if (h instanceof Headers) {
-        h.set(k, v);
-      } else {
-        (h as any)[k] = v;
-      }
-    });
+    Object.entries(this.getHeaders()).forEach(([k, v]) => setHeader(h, k, v));
     Object.assign(init.headers);
     const response = await myFetch(input, init);
     this.saveCookie(response.headers.get("set-cookie") || "");

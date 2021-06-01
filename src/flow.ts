@@ -231,9 +231,7 @@ const commands = {
       ? (await upsource.getReviews({
         query: onlyIssueKeys.join(" or "),
       })).result.reviews || []
-      : (await upsource.getAllMyReviews({
-        filter: jiraIssueKeys.join(" or "),
-      })).result.reviews || [];
+      : (await upsource.getAllMyReviews()).result.reviews || [];
 
     const revisionsForReview = await Promise.all(
       reviews.map((r) => upsourceApi.getRevisionsInReview(r.reviewId)),
