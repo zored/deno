@@ -42,6 +42,12 @@ export class GitlabApi {
   ): Promise<Pipeline[]> =>
     this.fetch(`projects/${this.project(p)}/pipelines?${parseQuery(params)}`);
 
+  getLastPipeline = async (
+    p: ProjectId,
+    ref: string,
+  ): Promise<Pipeline | undefined> =>
+    (await this.getPipelines(p, { ref, per_page: 1, page: 1 }))[0];
+
   groups = async (p: ProjectId) => this.fetch(`groups/${this.project(p)}/`);
 
   async fetch(path: string, init: RequestInit = {}) {

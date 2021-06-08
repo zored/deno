@@ -7,6 +7,7 @@ import {
   IssueKey,
   print,
   runCommands,
+  shOpen,
 } from "../mod.ts";
 import { GitClient } from "./lib/git.ts";
 import { CliSelect } from "./lib/unstable-command.ts";
@@ -23,7 +24,7 @@ import {
   UpsourceService,
   VoidMessage,
 } from "./lib/upsource.ts";
-import { debugLog, fromPairsArray, sleepMs } from "./lib/utils.ts";
+import { debugLog, fromPairsArray, sleepMs, wait } from "./lib/utils.ts";
 import { load } from "./lib/configs.ts";
 import { fromPairs, zip } from "../deps.ts";
 import { ConfigGitlabApiFactory, GitlabApi } from "./lib/gitlab.ts";
@@ -466,7 +467,30 @@ const commands = {
     return fromPairs(revert ? result.reverse() : result);
   },
 
-  async putBranchReview({ w, i, h, p }: any) {
+  async waitPipeline({ o }: { o: boolean }) {
+    const gitlab = getGitlab();
+    const git = getGit();
+    const project = getGitlabProjectFromVcsUrl(await git.getOriginUrl());
+    if (!project) {
+      throw new Error("no project found in git");
+    }
+    const ref = await git.getCurrentBranch();
+    let url = "page:blank";
+    await wait(async () => {
+      const pipeline = await gitlab.getLastPipeline(project, ref);
+      if (!pipeline) {
+        throw new Error("no pipeline found");
+      }
+      url = pipeline.web_url;
+      return ["success", "failed"].includes(pipeline.status);
+    });
+
+    if (o && url) {
+      await shOpen(url);
+    }
+  },
+
+  async putBranchReview({ w, i, h, p, o }: any) {
     const projectId = p ||
       load<{ projectIds: string[] }>("upsource").projectIds[0];
     const issueKey: string = i || await getGit().getCurrentBranch(),
@@ -568,10 +592,10 @@ const commands = {
     while (true) {
       console.error({ review });
       const unreachableRevisions =
-        (await upsource.getRevisionsInReview(review.reviewId))
+        ((await upsource.getRevisionsInReview(review.reviewId))
           .result
           .allRevisions
-          .revision
+          .revision || [])
           .filter((r) =>
             ![
               RevisionReachability.Reachable,
@@ -587,6 +611,9 @@ const commands = {
     }
 
     console.log(JSON.stringify({ review, revisions, responses, action }));
+    if (o) {
+      await shOpen(upsource.getReviewUrl(review.reviewId));
+    }
   },
 };
 await runCommands(commands as any as CommandMap);

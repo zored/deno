@@ -161,7 +161,9 @@ export class CookieFetcher implements Fetcher {
   }
 
   async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
-    setHeader(init?.headers, "cookie", this.cookie());
+    init = init || {};
+    init.headers = setHeader(init?.headers, "cookie", this.cookie());
+
     return await myFetch(input, init);
   }
 }

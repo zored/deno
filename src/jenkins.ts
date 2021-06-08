@@ -9,7 +9,7 @@ import {
 import { load } from "./lib/configs.ts";
 import { BasicAuthFetcher, logJson, wait, withProgress } from "./lib/utils.ts";
 import { QueryObject } from "./lib/url.ts";
-import { Commands, sh } from "./lib/command.ts";
+import { Commands, sh, shOpen } from "./lib/command.ts";
 import { print } from "./lib/print.ts";
 
 const { job, jobParams, host, login, cookiePath, buildId, nodeId } = load<{
@@ -102,15 +102,16 @@ async function waitBuild(
   }
 
   if (open) {
-    await sh(`open ${build.url}`);
+    await shOpen(build.url);
   }
   return build;
 }
 
 await new Commands({
   build: async function ({ w = false, o = false, _: [j, jobParams] }) {
+    const job = parse.job(j);
     const queueItemId = await api.buildWithParameters(
-      parse.job(j),
+      job,
       parse.jobParams(jobParams),
     );
     let buildId: number | undefined = undefined;

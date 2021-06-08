@@ -56,13 +56,19 @@ export class JiraCookieListener {
         throw new Error(`siteId '${siteId}' is invalid`);
       }
 
-      const auth: { jira: { cookies: string }; upsource: { cookies: string } } =
-        JSON.parse(
-          readTextFileSync(path),
-        );
-      const site = auth[siteId] || {};
-      auth[siteId] = site;
-      site.cookies = cookies;
+      const auth: {
+        jira: { cookies: string };
+        upsource: { authorization: string; cookies: string };
+      } = JSON.parse(
+        readTextFileSync(path),
+      );
+      switch (siteId) {
+        case "upsource":
+          auth.upsource.authorization = `Bearer ${cookies}`;
+          break;
+        default:
+          auth.jira.cookies = cookies;
+      }
       Deno.writeTextFileSync(path, JSON.stringify(auth));
       console.debug(`wrote '${siteId}' cookies`);
 

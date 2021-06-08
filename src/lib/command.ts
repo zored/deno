@@ -31,6 +31,11 @@ export type ShCommand = string | string[];
 export const sh = (command: ShCommand) => new Runner().run(command);
 export const shOut = (command: ShCommand) => new Runner().output(command);
 
+export async function shOpen(urlOrPath: string) {
+  // todo: Windows?
+  await sh(`open ${urlOrPath}`);
+}
+
 export class ProcessWrapper {
   private status?: Deno.ProcessStatus;
 

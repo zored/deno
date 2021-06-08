@@ -1,22 +1,70 @@
 "use strict";
-chrome.webNavigation.onDOMContentLoaded.addListener(onload);
+chrome.webNavigation.onCompleted.addListener(onload);
 
 const urlNeedles = {
   jira: "https://jira.",
   upsource: "https://upsource.",
 };
 
-async function onload({ url }) {
+function getRequestToken() {
+  console.error({
+    arguments,
+    app: window.app,
+  });
+  return new Promise((resolve) => {
+    const check = async () => {
+      const auth = window?.app?.getAuth();
+      if (!auth) {
+        setTimeout(check, 200);
+        return;
+      }
+      const token = await auth.requestToken();
+      console.error({ token });
+      debugger;
+      resolve(token);
+    };
+    check();
+  });
+}
+
+async function onload(e) {
+  const {
+    url,
+    tabId,
+  } = e;
+
   if (!await shouldUpdate(url)) {
     return;
   }
-  const cookies = await chromeCookiesGetAllSecureByUrl(url);
-  console.debug({ cookies });
-  const result =
-    await (await fetch(`http://localhost:11536?siteId=${getSiteId(url)}`, {
-      method: "POST",
-      body: cookies.map((c) => `${c.name}=${c.value}`).join("; "),
-    })).text();
+
+  let body = "";
+
+  const siteId = getSiteId(url);
+  switch (siteId) {
+    case "upsource":
+      body = await chrome.scripting.executeScript({
+        target: {
+          tabId,
+          allFrames: true,
+        },
+        function: getRequestToken,
+      });
+      break;
+    case "jira":
+      body = (await chromeCookiesGetAllSecureByUrl(url))
+        .map((c) => `${c.name}=${c.value}`).join("; ");
+      break;
+    default:
+      console.debug({ url });
+      return;
+  }
+
+  console.error({ body });
+
+  const result = await (await fetch(`http://localhost:11536?siteId=${siteId}`, {
+    method: "POST",
+    body,
+  })).text();
   if (result !== "ok") {
     console.error("could not write cookies", result);
     return;
@@ -25,6 +73,7 @@ async function onload({ url }) {
 }
 
 async function shouldUpdate(url) {
+  return true;
   const now = new Date();
   const ok = async () => {
     await chromeStorageLocalSetKey(now.toString());

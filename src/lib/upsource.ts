@@ -46,7 +46,7 @@ export enum RevisionReachability {
 }
 
 export interface RevisionDescriptorList {
-  revision: RevisionInfo[];
+  revision?: RevisionInfo[];
 }
 
 export interface RevisionsInReviewResponse {
@@ -194,13 +194,26 @@ export class UpsourceService {
 }
 
 export function createUpsourceApi() {
-  const c = load<{ authorization: string; host: string; cookie: string }>(
-    "upsource",
-  );
+  const session = (() => {
+    let c: { authorization: string; host: string; cookies: string };
+    let prev = 0;
+    return () => {
+      const now = (new Date()).getTime();
+      const minute = 1000 * 60;
+      const duration = now - prev;
+      if (duration < minute) {
+        return c;
+      }
+      prev = now;
+      c = load("upsource");
+      return c;
+    };
+  })();
+
   return new UpsourceApi(
-    c.host,
-    c.authorization,
-    new CookieFetcher(() => c.cookie),
+    session().host,
+    () => session().authorization,
+    new CookieFetcher(() => session().cookies),
   );
 }
 
@@ -208,7 +221,7 @@ export function createUpsourceApi() {
 export class UpsourceApi {
   constructor(
     public host: string,
-    private authorization: string,
+    private authorization: () => string,
     private fetcher: Fetcher,
   ) {
   }
@@ -259,8 +272,9 @@ export class UpsourceApi {
     const headers: HeadersInit = {
       "content-type": "application/json",
     };
-    if (this.authorization) {
-      headers["authorization"] = this.authorization;
+    const auth = this.authorization();
+    if (auth) {
+      headers["authorization"] = auth;
     }
     const json: T | Err =
       await (await this.fetcher.fetch(`${this.host}/~rpc/${name}`, {
@@ -274,6 +288,10 @@ export class UpsourceApi {
     }
 
     return json;
+  }
+
+  getReviewUrl(reviewId: ReviewId): string {
+    return `${this.host}/${reviewId.projectId}/review/${reviewId.reviewId}`;
   }
 }
 
