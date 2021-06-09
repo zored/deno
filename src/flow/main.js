@@ -83,6 +83,9 @@ function fillStatus(s) {
         (v.reviews ?? []).map((v) =>
           aWarn(v.completed ? "готово" : "ревью", !v.completed, v.url)
         ).join(" "),
+        (v.jenkinsBuilds ?? []).map((v) =>
+          aWarn(v.result, v.result !== "SUCCESS", v.url)
+        ).join(" "),
       ];
     }).map((v) =>
       v.map((v) =>

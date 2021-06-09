@@ -2,30 +2,16 @@
 import {
   Build,
   BuildAddress,
-  JenkinsApi,
+  JenkinsApiFactory,
   NodeAddress,
   QueueItem,
 } from "./lib/jenkins.ts";
-import { load } from "./lib/configs.ts";
-import { BasicAuthFetcher, logJson, wait, withProgress } from "./lib/utils.ts";
+import { logJson, wait, withProgress } from "./lib/utils.ts";
 import { QueryObject } from "./lib/url.ts";
-import { Commands, sh, shOpen } from "./lib/command.ts";
+import { Commands, shOpen } from "./lib/command.ts";
 import { print } from "./lib/print.ts";
 
-const { job, jobParams, host, login, cookiePath, buildId, nodeId } = load<{
-  job: string;
-  jobParams: QueryObject;
-  host: string;
-  login: string;
-  cookiePath: string;
-  buildId: number;
-  nodeId: number;
-}>("jenkins");
-const build: BuildAddress = { job, buildId };
-const api = new JenkinsApi(
-  { host, login },
-  new BasicAuthFetcher(cookiePath, login, "jenkins_password"),
-);
+const api = new JenkinsApiFactory().create();
 
 type Arg = number | string;
 const parse = {

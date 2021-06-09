@@ -1,5 +1,6 @@
 import { parseQuery, QueryObject } from "./url.ts";
-import { Fetcher } from "./utils.ts";
+import { BasicAuthFetcher, Fetcher } from "./utils.ts";
+import { load } from "./configs.ts";
 
 export interface JenkinsApiInfo {
   host: string;
@@ -49,6 +50,11 @@ export class PathRetriever {
 
   queueItem = (id: QueueItemId) => `/queue/item/${id}/api/json`;
 
+  jobJson = (j: JobName) => `${this.job(j)}/api/json`;
+  jobDetails = (j: JobName) =>
+    `${
+      this.jobJson(j)
+    }?tree=builds[actions[parameters[name,value]],url,result,building,number,duration,estimatedDuration]`;
   private job = (j: JobName) => `/job/${j}`;
   private build = (a: BuildAddress) => `${this.job(a.job)}/${a.buildId}`;
 
@@ -60,10 +66,13 @@ class BluePathRetriever {
   nodes = (b: BuildAddress) => `${this.build(b)}/nodes`;
   steps = (n: NodeAddress) => `${this.node(n)}/steps`;
   nodeLog = (a: NodeAddress) => `${this.node(a)}/log`;
+
+  node = (n: NodeAddress) => `${this.nodes(n.build)}/${n.nodeId}`;
+
   private job = (j: JobName) =>
     `/blue/rest/organizations/jenkins/pipelines/${j}`;
+
   private build = (b: BuildAddress) => `${this.job(b.job)}/runs/${b.buildId}`;
-  node = (n: NodeAddress) => `${this.nodes(n.build)}/${n.nodeId}`;
 }
 
 type BuildNumber = number;
@@ -74,7 +83,17 @@ export interface QueueItem {
   };
 }
 
+export interface Action {
+  _class: string;
+  parameters?: {
+    _class: string;
+    name: string;
+    value: string;
+  }[];
+}
+
 export interface Build {
+  actions: Action[];
   building: boolean;
   number: number;
   result: string;
@@ -99,6 +118,45 @@ export interface Node {
   durationInMillis: number;
 }
 
+export interface JobDetails {
+  builds: Build[];
+}
+
+interface JenkinsConfigFields {
+  host: string;
+  login: string;
+  password: string;
+  jobs: {
+    aliases: string[];
+    id: string;
+    flow?: boolean;
+    params: Record<string, string | string[]>;
+  }[];
+  cookiePath: string;
+}
+export class JenkinsConfig {
+  constructor(public all: JenkinsConfigFields) {
+  }
+
+  static load() {
+    return new JenkinsConfig(load<JenkinsConfigFields>("jenkins"));
+  }
+
+  getJobIds(): string[] {
+    return this.all.jobs.map((j) => j.id);
+  }
+}
+
+export class JenkinsApiFactory {
+  create(config = JenkinsConfig.load()): JenkinsApi {
+    const { host, login, cookiePath } = config.all;
+    return new JenkinsApi(
+      { host, login },
+      new BasicAuthFetcher(cookiePath, login, "jenkins_password"),
+    );
+  }
+}
+
 export class JenkinsApi {
   private static readonly crumbName = "Jenkins-Crumb";
   public crumb: string | undefined = "";
@@ -107,6 +165,10 @@ export class JenkinsApi {
   private loggedIn = false;
 
   constructor(private info: JenkinsApiInfo, private fetcher: Fetcher) {
+  }
+
+  getJobDetails(j: JobName): Promise<JobDetails> {
+    return this.json(this.get(this.paths.jobDetails(j)));
   }
 
   getLastBuild = async (j: JobName): Promise<Build> =>
@@ -131,20 +193,6 @@ export class JenkinsApi {
         .get("Location") || "",
     );
 
-  private text = async (response: Promise<Response>) => (await response).text();
-  private json = async (response: Promise<Response>) => (await response).json();
-  private postForm = async (path: string, data: QueryObject) =>
-    this.fetch(
-      path,
-      {
-        method: "POST",
-        body: parseQuery(data),
-      },
-      { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
-    );
-
-  private get = async (path: string) => this.fetch(path);
-
   fetch = async (
     path: string,
     request: RequestInit = {},
@@ -159,6 +207,22 @@ export class JenkinsApi {
       ...request,
     });
   };
+
+  private text = async (response: Promise<Response>) => (await response).text();
+
+  private json = async (response: Promise<Response>) => (await response).json();
+
+  private postForm = async (path: string, data: QueryObject) =>
+    this.fetch(
+      path,
+      {
+        method: "POST",
+        body: parseQuery(data),
+      },
+      { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+    );
+
+  private get = async (path: string) => this.fetch(path);
 
   private getAuthHeaders(): Record<string, string> {
     return this.crumb ? { [JenkinsApi.crumbName]: this.crumb } : {};

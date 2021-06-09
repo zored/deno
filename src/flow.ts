@@ -2,9 +2,14 @@
 import {
   BrowserClient,
   BrowserClientFactory,
+  Build,
   CommandMap,
   History,
   IssueKey,
+  JenkinsApi,
+  JenkinsApiFactory,
+  JenkinsConfig,
+  JobName,
   print,
   runCommands,
   shOpen,
@@ -20,6 +25,7 @@ import {
   RevisionInfo,
   RevisionReachability,
   RevisionsInReviewResponse,
+  RoleInReview,
   UpsourceError,
   UpsourceService,
   VoidMessage,
@@ -40,6 +46,14 @@ function getJira(): BrowserClient {
 
 function getGitlab(): GitlabApi {
   return (new ConfigGitlabApiFactory()).create();
+}
+
+function getJenkinsApi(c: JenkinsConfig): JenkinsApi {
+  return new JenkinsApiFactory().create(c);
+}
+
+function getJenkins() {
+  return new Jenkins();
 }
 
 function getGit(): GitClient {
@@ -76,6 +90,39 @@ function getGitlabProjectFromVcsUrl(p: string): string | null {
 
 function getIssueCacher() {
   return new IssueCacherFactory().create();
+}
+
+type BuildsByIssues = { issue: IssueKey; jobName: JobName; build: Build }[];
+
+class Jenkins {
+  constructor(
+    private config = JenkinsConfig.load(),
+    private api = getJenkinsApi(config),
+  ) {
+  }
+
+  async getBuildsByIssues(issues: Set<IssueKey>): Promise<BuildsByIssues> {
+    const ids = this.config.getJobIds();
+    const buildsByIssuesByJobIndex = await Promise.all(
+      ids.map(async (j) =>
+        (await this.api.getJobDetails(j)).builds.reduce((r, b) => {
+          let issue = "";
+          b.actions.some((b) => {
+            issue = b?.parameters?.find((p) => p.name === "Issue")?.value ?? "";
+            return issue.length;
+          });
+          if (issues.has(issue) && !r[issue]) {
+            r[issue] = b;
+          }
+          return r;
+        }, {} as Record<IssueKey, Build>)
+      ),
+    );
+    return ids.flatMap((jobName, jobIndex) =>
+      Object
+        .entries(buildsByIssuesByJobIndex[jobIndex])
+        .map(([issue, build]) => ({ issue, jobName, build })), []);
+  }
 }
 
 const commands = {
@@ -208,6 +255,7 @@ const commands = {
     const gitlab = getGitlab(),
       jira = getJira(),
       upsourceApi = createUpsourceApi(),
+      jenkins = getJenkins(),
       upsource = new UpsourceService(upsourceApi);
 
     const vcsRepoUrlByUpsourceProjectId = fromPairs(
@@ -298,6 +346,8 @@ const commands = {
           ...(v.fields && v.fields.parent ? [v.fields.parent.key] : []),
         ])
       );
+
+    const jenkinsBuilds = await jenkins.getBuildsByIssues(new Set(issueKeys));
 
     const statusConfig = load<
       { order: string[]; icons: Record<string, string> }
@@ -419,7 +469,13 @@ const commands = {
             issue.parent = parent;
           }
 
-          const r: any = { issue };
+          const r: any = {
+            issue,
+            jenkinsBuilds: jenkinsBuilds
+              .filter((b) => b.issue === key)
+              .map((b) => b.build)
+              .map((b) => ({ result: b.result, url: b.url })),
+          };
 
           const reviews = reviewsByKey[key] || [];
           r.reviews = await upsource.output(reviews);
@@ -608,6 +664,22 @@ const commands = {
       }
       console.error({ unreachableRevisions });
       await sleep();
+    }
+
+    const reviewerIds = load<string[] | undefined>("upsource.defaultReviewers");
+    if (reviewerIds && reviewerIds.length) {
+      const { reviewId } = review;
+      await Promise.all(
+        reviewerIds.map((userId) => userId.substring(0, 36)).map((userId) =>
+          upsource.addParticipantToReview({
+            reviewId,
+            participant: {
+              userId,
+              role: RoleInReview.Reviewer,
+            },
+          })
+        ),
+      );
     }
 
     console.log(JSON.stringify({ review, revisions, responses, action }));

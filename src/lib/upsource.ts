@@ -55,7 +55,7 @@ export interface RevisionsInReviewResponse {
 }
 
 export interface ParticipantInReview {
-  userId: string;
+  userId: UserId;
   state?: ParticipantState;
   role: RoleInReview;
 }
@@ -86,6 +86,13 @@ export interface Review {
 export interface RenameReviewRequest {
   reviewId: ReviewId;
   text: string;
+}
+
+type UserId = string;
+
+export interface ParticipantInReviewRequest {
+  reviewId: ReviewId;
+  participant: ParticipantInReview;
 }
 
 export interface RenameReviewResponse {
@@ -240,6 +247,10 @@ export class UpsourceApi {
 
   async renameReview(dto: RenameReviewRequest) {
     return this.rpc<RenameReviewResponse>("renameReview", dto);
+  }
+
+  async addParticipantToReview(dto: ParticipantInReviewRequest) {
+    return this.rpc<VoidMessage>("addParticipantToReview", dto);
   }
 
   async editReviewDescription(dto: EditReviewDescriptionRequest) {
