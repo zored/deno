@@ -5,7 +5,7 @@ JSON.parse(localStorage.ignoreWarnsLinks || "[]").forEach((v) =>
 let status = {};
 
 async function loadStatus() {
-  const status = await (await fetch("/status")).json();
+  const status = await (await fetch("/status" + location.search)).json();
   const e = status.error;
   if (e) {
     throw new Error(JSON.stringify({ status }));

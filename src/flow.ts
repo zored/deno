@@ -241,15 +241,28 @@ const commands = {
     const c = serve({ port: p });
     for await (const req of c) {
       const { url } = req;
+      const [, path, , query] = url.match(/^(.*?)(\?(.*))?$/) || [];
+
+      console.error({ query });
+      const queryObject = fromPairsArray(
+        (query || "")
+          .split("&")
+          .map((v) => v.split("=", 2) as [string, string])
+          .filter(([n]) => n.length),
+      );
+
       let body: string | Uint8Array = "", status = 200;
       const headers: HeadersInit = { "content-type": "text/html" };
 
-      switch (url) {
+      switch (path) {
         case "/status":
           headers["content-type"] = "application/json";
           for (let attempt = 0; attempt < 3; attempt++) {
             try {
-              body = JSON.stringify(await commands._getStatusInfo(i));
+              console.error({ queryObject });
+              body = JSON.stringify(
+                await commands._getStatusInfo(queryObject.issue || []),
+              );
               break;
             } catch (e) {
               const error = e instanceof Error ? e.message : JSON.stringify(e);
@@ -268,11 +281,11 @@ const commands = {
             "/main.css": "text/css",
             "/main.js": "text/javascript",
             "/index.htm": "text/html",
-          }).find(([k]) => k === url);
+          }).find(([k]) => k === path);
           if (file) {
-            const [path, mime] = file;
+            const [filePath, mime] = file;
             headers["content-type"] = mime;
-            body = Deno.readFileSync(`src/flow/${path}`);
+            body = Deno.readFileSync(`src/flow/${filePath}`);
             break;
           }
           status = 404;
