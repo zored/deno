@@ -8,8 +8,9 @@ const upsource = new UpsourceService(api);
 await new Commands({
   toReview: async ({ _: [path] }) => {
     console.log(JSON.stringify(
-      await upsource.output(
+      upsource.output(
         (await upsource.getAllMyReviews()).result.reviews || [],
+        await upsource.getMyId(),
       ),
     ));
   },

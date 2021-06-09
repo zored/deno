@@ -30,7 +30,13 @@ import {
   UpsourceService,
   VoidMessage,
 } from "./lib/upsource.ts";
-import { debugLog, fromPairsArray, sleepMs, wait } from "./lib/utils.ts";
+import {
+  debugLog,
+  fromPairsArray,
+  promiseRecord,
+  sleepMs,
+  wait,
+} from "./lib/utils.ts";
 import { load } from "./lib/configs.ts";
 import { fromPairs, zip } from "../deps.ts";
 import { ConfigGitlabApiFactory, GitlabApi } from "./lib/gitlab.ts";
@@ -92,6 +98,45 @@ function getIssueCacher() {
   return new IssueCacherFactory().create();
 }
 
+const automatedInfoField = "customfield_54419";
+interface StatusIssue {
+  key: string;
+  developers: {
+    name: string;
+    displayName: string;
+  }[];
+  changelog: {
+    histories: {
+      items: {
+        field: string;
+      }[];
+    }[];
+  };
+  fields: {
+    lastViewed: string;
+    assignee: {
+      name: string;
+      displayName: string;
+    };
+    summary: string;
+    status: {
+      name: string;
+    };
+    [automatedInfoField]: string;
+    parent: {
+      key: string;
+      fields: {
+        summary: string;
+        status: { name: string };
+      };
+    };
+    comment: {
+      comments: {
+        body: string;
+      }[];
+    };
+  };
+}
 type BuildsByIssues = { issue: IssueKey; jobName: JobName; build: Build }[];
 
 class Jenkins {
@@ -258,41 +303,68 @@ const commands = {
       jenkins = getJenkins(),
       upsource = new UpsourceService(upsourceApi);
 
-    const vcsRepoUrlByUpsourceProjectId = fromPairs(
-      (await Promise.all(
-        load<{ projectIds: string[] }>("upsource").projectIds.map(
-          async (projectId) =>
-            (await upsourceApi.getProjectVcsLinks({
-              projectId,
-            })).result.repo.map((v) => [v.id, v.url[0]]),
+    const asyncResults = await promiseRecord({
+      vcsRepoUrlByUpsourceProjectId: async () =>
+        fromPairs(
+          (await Promise.all(
+            load<{ projectIds: string[] }>("upsource").projectIds.map(
+              async (projectId) =>
+                (await upsourceApi.getProjectVcsLinks({
+                  projectId,
+                })).result.repo.map((v) => [v.id, v.url[0]]),
+            ),
+          )).flatMap((v) => v),
         ),
-      )).flatMap((v) => v),
-    ) as Record<string, string>;
+      jiraIssueKeys: async () =>
+        onlyIssueKeys.length ? [] : (await jira.findIssues({
+          jql: BrowserClient.JQL_MY_UNRESOLVED_OR_ASSIGNED_TO_MERGE,
+          fields: ["parent"],
+        })).map((v: any) => v.key),
+      reviewsWithRevisions: async () => {
+        const reviews: Review[] = onlyIssueKeys.length
+          ? (await upsource.getReviews({
+            query: onlyIssueKeys.join(" or "),
+          })).result.reviews || []
+          : (await upsource.getAllMyReviews()).result.reviews || [];
+        const revisionsForReview = await Promise.all(
+          reviews.map((r) => upsourceApi.getRevisionsInReview(r.reviewId)),
+        );
+        return (zip(reviews, revisionsForReview) as [
+          Review,
+          Resulting<RevisionsInReviewResponse>,
+        ][]).map(([review, revisions]) =>
+          [
+            review,
+            revisions.result.allRevisions.revision,
+          ] as [Review, RevisionInfo[]]
+        );
+      },
+      myJiraName: async () => await jira.getCurrentUserName(),
+      upsourceMyId: async () => await upsource.getMyId(),
+    });
 
-    const jiraIssueKeys: IssueKey[] = onlyIssueKeys.length
-      ? []
-      : (await jira.findIssues({
-        jql: BrowserClient.JQL_MY_UNRESOLVED_OR_ASSIGNED_TO_MERGE,
-        fields: ["parent"],
-      })).map((v: any) => v.key);
-
-    const reviews = onlyIssueKeys.length
-      ? (await upsource.getReviews({
-        query: onlyIssueKeys.join(" or "),
-      })).result.reviews || []
-      : (await upsource.getAllMyReviews()).result.reviews || [];
-
-    const revisionsForReview = await Promise.all(
-      reviews.map((r) => upsourceApi.getRevisionsInReview(r.reviewId)),
-    );
-    const reviewsWithRevisions = (zip(reviews, revisionsForReview) as [
-      Review,
-      Resulting<RevisionsInReviewResponse>,
-    ][]).map(([review, revisions]) =>
-      [
-        review,
-        revisions.result.allRevisions.revision,
-      ] as [Review, RevisionInfo[]]
+    const vcsRepoUrlByUpsourceProjectId: Record<string, string> =
+      asyncResults.vcsRepoUrlByUpsourceProjectId;
+    const jiraIssueKeys: IssueKey[] = asyncResults.jiraIssueKeys;
+    const reviewsWithRevisions: [Review, RevisionInfo[]][] =
+      asyncResults.reviewsWithRevisions;
+    const myJiraName: string = asyncResults.myJiraName;
+    const upsourceMyId: string = asyncResults.upsourceMyId;
+    const reviewsWithKeys: [Review, Set<IssueKey>][] = reviewsWithRevisions
+      .map(([review, revisions]) =>
+        [
+          review,
+          new Set(
+            revisions.map((r) =>
+              getIssueKeyFromCommitMessage(r.revisionCommitMessage)
+            ).filter((s) => s !== null),
+          ),
+        ] as [Review, Set<IssueKey>]
+      );
+    const reviewsByKey: Record<IssueKey, Review[]> = fromPairsArray(
+      reviewsWithKeys.flatMap(([review, keys]) =>
+        Array.from(keys).map((k) => [k, review] as [IssueKey, Review])
+      ),
     );
     const projectIdsByReviewId: Record<string, string[]> = fromPairsArray(
       reviewsWithRevisions.flatMap(
@@ -308,28 +380,6 @@ const commands = {
       ),
       true,
     );
-    const reviewsWithKeys: [Review, Set<IssueKey>][] = reviewsWithRevisions
-      .map(([review, revisions]) =>
-        [
-          review,
-          new Set(
-            revisions.map((r) =>
-              getIssueKeyFromCommitMessage(r.revisionCommitMessage)
-            ).filter((s) => s !== null),
-          ),
-        ] as [Review, Set<IssueKey>]
-      );
-    const reviewsByKey: Record<IssueKey, Review[]> = fromPairsArray(
-      reviewsWithKeys
-        .flatMap(([review, keys]) =>
-          Array.from(keys).map((k) => [k, review] as [IssueKey, Review])
-        ),
-    );
-
-    const automatedInfoField = "customfield_54419";
-
-    const myJiraName = await jira.getCurrentUserName();
-
     const issueKeys: IssueKey[] = onlyIssueKeys.length
       ? onlyIssueKeys
       : (await jira.findIssues({
@@ -346,9 +396,7 @@ const commands = {
           ...(v.fields && v.fields.parent ? [v.fields.parent.key] : []),
         ])
       );
-
     const jenkinsBuilds = await jenkins.getBuildsByIssues(new Set(issueKeys));
-
     const statusConfig = load<
       { order: string[]; icons: Record<string, string> }
     >("jira.status");
@@ -359,167 +407,175 @@ const commands = {
       },
       {} as Record<string, number>,
     );
-
     const statusPriority = (t: any) =>
       statusPriorities[t.fields.status.name] ?? 0;
-    const lastViewed = (a: any): number =>
+    const lastViewed = (a: StatusIssue): number =>
       (new Date(a.fields.lastViewed)).getTime();
-    const lastDevOrAssignee = (f: any) =>
+    const lastDevOrAssignee = (f: StatusIssue) =>
       f.developers.length
         ? f.developers.slice(-1)[0].name
         : f.fields.assignee.name;
     const humanPriority = (t: any) =>
       lastDevOrAssignee(t) === myJiraName ? 0 : 1;
+    const issues = (await Promise.all(
+      issueKeys.map((key): Promise<StatusIssue> =>
+        jira.getIssueFields(key, [
+          "status",
+          "summary",
+          "parent",
+          "lastViewed",
+          "assignee",
+          "comment",
+          automatedInfoField,
+        ], [
+          "changelog",
+        ]) as any
+      ),
+    ))
+      .map((t: StatusIssue) => {
+        t.developers = t.changelog.histories.flatMap((history) =>
+          history.items
+            .filter((item: any) =>
+              ["Developer", "Работал"].includes(item.field)
+            )
+            .map((item: any) => ({
+              name: item.to,
+              displayName: item.toString,
+            }))
+        );
+        return t;
+      })
+      .filter((t) => {
+        if (t.fields.status.name !== "To Merge") {
+          return true;
+        }
+        if (t.fields.assignee.name === myJiraName) {
+          return true;
+        }
 
-    const result = await Promise.all(
-      (await Promise.all(
-        issueKeys.map((key) =>
-          jira.getIssueFields(key, [
-            "status",
-            "summary",
-            "parent",
-            "lastViewed",
-            "assignee",
-            "comment",
-            automatedInfoField,
-          ], [
-            "changelog",
-          ])
-        ),
-      ))
-        .map((t) => {
-          t.developers = t.changelog.histories.flatMap((history: any) =>
-            history.items
-              .filter((item: any) =>
-                ["Developer", "Работал"].includes(item.field)
-              )
-              .map((item: any) => ({
-                name: item.to,
-                displayName: item.toString,
-              }))
-          );
-          return t;
-        })
-        .filter((t) => {
-          if (t.fields.status.name !== "To Merge") {
-            return true;
-          }
-          if (t.fields.assignee.name === myJiraName) {
-            return true;
-          }
-
-          // I was developer:
-          return t.developers.some((v: any) => v.name === myJiraName);
-        })
-        .sort((a, b) => {
-          return (statusPriority(a) - statusPriority(b)) ||
-            (humanPriority(a) - humanPriority(b)) ||
-            (lastViewed(a) - lastViewed(b));
-        })
-        .map(async (t) => {
-          let parent = null;
-          if (t.fields.parent) {
-            const {
-              key,
-              fields: {
-                summary,
-                status: { name: status },
-              },
-            } = t.fields.parent;
-            parent = {
-              key,
-              summary,
-              url: getJiraIssueUrl(key),
-              status,
-            };
-          }
-          const {
-            key,
-            fields: {
-              summary,
-              status: { name: status },
-              [automatedInfoField]: automatedInfo,
-              comment: { comments },
-            },
-
-            developers,
-          } = t;
-
-          const assignee = t.fields?.assignee?.displayName;
-
-          const statusIcon = statusConfig.icons[status];
-          const issue: any = {
-            key,
-            summary,
-            url: getJiraIssueUrl(key),
-            status: (statusIcon ? `${statusIcon} ` : "") + status,
-            assignee,
-
-            developers: developers.map((v: any) => ({
-              displayName: v.displayName,
-              me: v.name === myJiraName,
-            })),
-          };
-
-          if (automatedInfo && !automatedInfo.includes("Result: Success")) {
-            issue.automatedError = automatedInfo;
-          }
-
-          if (parent) {
-            issue.parent = parent;
-          }
-
-          const r: any = {
-            issue,
-            jenkinsBuilds: jenkinsBuilds
-              .filter((b) => b.issue === key)
-              .map((b) => b.build)
-              .map((b) => ({ result: b.result, url: b.url })),
-          };
-
+        // I was developer:
+        return t.developers.some((v: any) => v.name === myJiraName);
+      })
+      .sort((a, b) => {
+        return (statusPriority(a) - statusPriority(b)) ||
+          (humanPriority(a) - humanPriority(b)) ||
+          (lastViewed(a) - lastViewed(b));
+      });
+    const pipelinesByKey = fromPairs(
+      await Promise.all(
+        issues.map(async (t) => {
+          const key = t.key;
           const reviews = reviewsByKey[key] || [];
-          r.reviews = await upsource.output(reviews);
-          const ref = key;
+          const projects = [
+            ...reviews
+              .flatMap((r) =>
+                projectIdsByReviewId[getStringReviewId(r.reviewId)] ??
+                  []
+              )
+              .map((upsourceProjectId) =>
+                vcsRepoUrlByUpsourceProjectId[upsourceProjectId]
+              )
+              .filter((v): v is string => !!v)
+              .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl)),
+            ...(issues.find((t) => t.key === key)?.fields.comment.comments ||
+              [])
+              .flatMap((c) => gitlab.parseProjects(c.body + "")),
+          ];
 
-          const pipelines = (await Promise.all(
-            [
-              ...reviews
-                .flatMap((r) =>
-                  projectIdsByReviewId[getStringReviewId(r.reviewId)] ?? []
-                )
-                .map((upsourceProjectId) =>
-                  vcsRepoUrlByUpsourceProjectId[upsourceProjectId]
-                )
-                .filter((v): v is string => !!v)
-                .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl)),
-              ...comments.flatMap((c: any) =>
-                gitlab.parseProjects(c.body + "")
-              ),
-            ]
-              .filter((p): p is string => p !== null)
-              .reduce((a, p) => {
-                if (!a.includes(p)) {
-                  a.push(p);
-                }
-                return a;
-              }, [] as string[])
-              .map((p) => {
-                return gitlab.getPipelines(p, { ref, per_page: 1, page: 1 });
-              }),
-          ))
-            .flat()
-            .filter((v) => !!v.status)
-            .map((v) => ({
-              status: v.status,
-              web_url: v.web_url,
-            }));
-          if (pipelines.length) {
-            r.pipelines = pipelines;
-          }
-          return [key, r];
+          return [
+            key,
+            (await Promise.all(
+              projects
+                .filter((p): p is string => p !== null)
+                .reduce((a, p) => {
+                  if (!a.includes(p)) {
+                    a.push(p);
+                  }
+                  return a;
+                }, [] as string[])
+                .map((p) =>
+                  gitlab.getPipelines(p, { ref: key, per_page: 1, page: 1 })
+                ),
+            ))
+              .flat()
+              .filter((v) => !!v.status)
+              .map((v) => ({
+                status: v.status,
+                web_url: v.web_url,
+              })),
+          ];
         }),
-    );
+      ),
+    ) as Record<string, { status: string; web_url: string }[]>;
+    const result = issues.map((t) => {
+      let parent = null;
+      if (t.fields.parent) {
+        const {
+          key,
+          fields: {
+            summary,
+            status: { name: status },
+          },
+        } = t.fields.parent;
+        parent = {
+          key,
+          summary,
+          url: getJiraIssueUrl(key),
+          status,
+        };
+      }
+      const {
+        key,
+        fields: {
+          summary,
+          status: { name: status },
+          [automatedInfoField]: automatedInfo,
+        },
 
+        developers,
+      } = t;
+
+      const assignee = t.fields?.assignee?.displayName;
+
+      const statusIcon = statusConfig.icons[status];
+      const issue: any = {
+        key,
+        summary,
+        url: getJiraIssueUrl(key),
+        status: (statusIcon ? `${statusIcon} ` : "") + status,
+        assignee,
+
+        developers: developers.map((v: any) => ({
+          displayName: v.displayName,
+          me: v.name === myJiraName,
+        })),
+      };
+
+      if (automatedInfo && !automatedInfo.includes("Result: Success")) {
+        issue.automatedError = automatedInfo;
+      }
+
+      if (parent) {
+        issue.parent = parent;
+      }
+
+      const r: any = {
+        issue,
+        jenkinsBuilds: jenkinsBuilds
+          .filter((b) => b.issue === key)
+          .map((b) => b.build)
+          .map((b) => ({ result: b.result, url: b.url })),
+      };
+
+      const reviews = reviewsByKey[key] || [];
+      r.reviews = upsource.output(reviews, upsourceMyId);
+
+      const pipelines = pipelinesByKey[key];
+      if (pipelines) {
+        r.pipelines = pipelines;
+      }
+      return [key, r];
+    });
     return fromPairs(revert ? result.reverse() : result);
   },
 

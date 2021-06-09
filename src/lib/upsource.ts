@@ -167,8 +167,7 @@ export class UpsourceService {
     return this.api.getReviews({ limit, query });
   }
 
-  async output(reviews: Review[]) {
-    const myId = await this.getMyId();
+  output(reviews: Review[], myId: string) {
     return reviews
       .sort((a, b) => a.updatedAt - b.updatedAt)
       .map((r) => ({
@@ -295,6 +294,7 @@ export class UpsourceApi {
       })).json();
 
     if (UpsourceApi.isErr(json)) {
+      console.error(this.authorization());
       throw new UpsourceError(json);
     }
 

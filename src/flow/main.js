@@ -97,12 +97,22 @@ function fillStatus(s) {
 }
 
 function loading(visible) {
-  document.getElementById("loading").style.display = visible ? "block" : "none";
+  const e = document.getElementById("loading");
+  e.innerText = (typeof visible === "string") ? visible : "Loading...";
+  e.style.display = visible ? "block" : "none";
 }
 
 async function update() {
   loading(true);
-  status = await loadStatus();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      status = await loadStatus();
+    } catch (e) {
+      loading(`Retry ${attempt} error: ${e.message}`);
+      continue;
+    }
+    break;
+  }
   fillStatus(status);
   loading(false);
 }

@@ -1,4 +1,4 @@
-import { chunk } from "../../deps.ts";
+import { chunk, zipObject } from "../../deps.ts";
 import { print } from "./print.ts";
 
 export async function sleepMs(ms = 1) {
@@ -266,4 +266,17 @@ export function parseJson(v: string) {
 
 export function logJson(json: any, pretty = false) {
   console.log(pretty ? JSON.stringify(json, null, " ") : JSON.stringify(json));
+}
+
+export async function promiseRecord(
+  r: Record<string, (Promise<any>) | (() => Promise<any>)>,
+): Promise<Record<keyof typeof r, any>> {
+  return zipObject(
+    Object.keys(r),
+    await Promise.all(
+      Object
+        .values(r)
+        .map((v: any) => typeof v === "function" ? v() : v),
+    ),
+  );
 }

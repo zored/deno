@@ -21,6 +21,7 @@ import camelCase from "https://deno.land/x/lodash@4.17.15-es/camelCase.js";
 import snakeCase from "https://deno.land/x/lodash@4.17.15-es/snakeCase.js";
 import merge from "https://deno.land/x/lodash@4.17.15-es/merge.js";
 import zip from "https://deno.land/x/lodash@4.17.15-es/zip.js";
+import zipObject from "https://deno.land/x/lodash@4.17.15-es/zipObject.js";
 import chunk from "https://deno.land/x/lodash@4.17.15-es/chunk.js";
 import fromPairs from "https://deno.land/x/lodash@4.17.15-es/fromPairs.js";
 import upperFirst from "https://deno.land/x/lodash@4.17.15-es/upperFirst.js";
@@ -35,5 +36,6 @@ export {
   snakeCase,
   upperFirst,
   zip,
+  zipObject,
 };
 export { SemVer } from "https://deno.land/x/semver@v1.0.0/mod.ts";
