@@ -84,7 +84,7 @@ function fillStatus(s) {
           aWarn(v.completed ? "готово" : "ревью", !v.completed, v.url)
         ).join(" "),
         (v.jenkinsBuilds ?? []).map((v) =>
-          aWarn(v.result, v.result !== "SUCCESS", v.url)
+          aWarn(v.result || "BUILDING", v.result !== "SUCCESS", v.url)
         ).join(" "),
       ];
     }).map((v) =>
@@ -102,6 +102,10 @@ function loading(visible) {
   e.style.display = visible ? "block" : "none";
 }
 
+function sleep(t) {
+  return new Promise((r) => setTimeout(r, t));
+}
+
 async function update() {
   loading(true);
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -109,6 +113,7 @@ async function update() {
       status = await loadStatus();
     } catch (e) {
       loading(`Retry ${attempt} error: ${e.message}`);
+      await sleep(2000);
       continue;
     }
     break;
