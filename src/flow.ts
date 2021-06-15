@@ -640,12 +640,10 @@ const commands = {
     const sleep = () => sleepMs(10000);
 
     while (true) {
-      const reviewsResponse = await upsource.getReviews({
+      const reviews: Review[] = (await upsource.getReviews({
         limit: 100,
-        query: `${issueKey}`,
-      });
-
-      const reviews: Review[] = reviewsResponse.result.reviews || [];
+        query: `${issueKey} and state: open`,
+      })).result.reviews || [];
       review = reviews.find((r) => r.title.includes(issueKey));
 
       if (review) {
