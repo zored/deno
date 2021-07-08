@@ -178,13 +178,14 @@ export class UpsourceService {
         }),
         myBranch: r.createdBy === myId,
         completed: r.createdBy === myId
-          ? r.isUnread || !r.completionRate.hasConcern
-          : r.participants.some((p) =>
-            p.userId === myId && p.state && [
-              ParticipantState.Accepted,
-              ParticipantState.Rejected,
-            ].includes(p.state)
-          ),
+          ? !r.isUnread && !r.completionRate.hasConcern
+          : !r.isUnread &&
+            r.participants.some((p) =>
+              p.userId === myId && p.state && [
+                ParticipantState.Accepted,
+                ParticipantState.Rejected,
+              ].includes(p.state)
+            ),
       }));
   }
 

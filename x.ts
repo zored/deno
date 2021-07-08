@@ -104,6 +104,13 @@ async function handleStorage(storage: Storage) {
   }
 
   for await (const line of readLines(process.stdout)) {
+    // No line, restart:
+    if (!line) {
+      process.close()
+      handleStorage(storage)
+      return
+    }
+
     const [
       eventString,
       name,
