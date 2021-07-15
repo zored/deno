@@ -1,7 +1,7 @@
 import { merge } from "../../deps.ts";
 import { load } from "./configs.ts";
 import { parseQuery } from "./url.ts";
-import { myFetch, RateLimit } from "./utils.ts";
+import { myFetch, parseJson, RateLimit } from "./utils.ts";
 
 export type ProjectId = number | string;
 
@@ -21,7 +21,7 @@ export class GitlabApi {
   constructor(
     private readonly host: string,
     private token: string,
-    private rateLimit = new RateLimit(100, 300),
+    private rateLimit = new RateLimit(5, 200),
   ) {
     this.host = this.host.replace(/\/+$/, "");
   }
@@ -52,14 +52,16 @@ export class GitlabApi {
 
   async fetch(path: string, init: RequestInit = {}) {
     await this.rateLimit.run();
-    return await (await myFetch(
+    const response = await myFetch(
       `${this.host}/api/v4/${path}`,
       merge({
         headers: {
           "private-token": this.token,
         },
       } as RequestInit, init),
-    )).json();
+    );
+    const text = await response.text();
+    return parseJson(text);
   }
 
   private project = (p: ProjectId) =>
