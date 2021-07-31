@@ -170,6 +170,7 @@ class Jenkins {
   }
 }
 
+type IssuesArgument = string[] | string | undefined;
 const commands = {
   async history({ i }: any) {
     const items = History.RepoFactory.create().list().reverse();
@@ -261,7 +262,10 @@ const commands = {
             try {
               console.error({ queryObject });
               body = JSON.stringify(
-                await commands._getStatusInfo(queryObject.issue || []),
+                await commands._getStatusInfo(
+                  queryObject.issue || [],
+                  queryObject.ignore || [],
+                ),
               );
               break;
             } catch (e) {
@@ -297,10 +301,16 @@ const commands = {
     }
   },
 
-  async status({ i }: { i: string[] | string | undefined }): Promise<void> {
+  async status(
+    { i, n }: { i: IssuesArgument; n: IssuesArgument },
+  ): Promise<void> {
+    const parseIssues = (i: IssuesArgument) =>
+      (Array.isArray(i) ? i : [i]).filter((k) => !!k).map((k) => k + "");
+
     console.log(JSON.stringify(
       await commands._getStatusInfo(
-        (Array.isArray(i) ? i : [i]).filter((k) => !!k).map((k) => k + ""),
+        parseIssues(i),
+        parseIssues(n),
         true,
       ),
     ));
@@ -308,6 +318,7 @@ const commands = {
 
   async _getStatusInfo(
     onlyIssueKeys: IssueKey[] = [],
+    ignoreIssueKeys: IssueKey[] = [],
     revert = false,
   ): Promise<any> {
     const gitlab = getGitlab(),
@@ -315,6 +326,12 @@ const commands = {
       upsourceApi = createUpsourceApi(),
       jenkins = getJenkins(),
       upsource = new UpsourceService(upsourceApi);
+
+    const configIgnoreIssues =
+      (await load<{ ignore_issues?: string[] }>("flow")).ignore_issues;
+    if (configIgnoreIssues) {
+      configIgnoreIssues.forEach((v) => ignoreIssueKeys.push(v));
+    }
 
     const asyncResults = await promiseRecord({
       vcsRepoUrlByUpsourceProjectId: async () =>
@@ -329,10 +346,10 @@ const commands = {
           )).flatMap((v) => v),
         ),
       jiraIssueKeys: async () =>
-        onlyIssueKeys.length ? [] : (await jira.findIssues({
+        (onlyIssueKeys.length ? [] : (await jira.findIssues({
           jql: BrowserClient.JQL_MY_UNRESOLVED_OR_ASSIGNED_TO_MERGE,
           fields: ["parent"],
-        })).map((v: any) => v.key),
+        })).map((v: any) => v.key)) as IssueKey[],
       reviewsWithRevisions: async () => {
         const reviews: Review[] = onlyIssueKeys.length
           ? (await upsource.getReviews({
@@ -393,9 +410,8 @@ const commands = {
       ),
       true,
     );
-    const issueKeys: IssueKey[] = onlyIssueKeys.length
-      ? onlyIssueKeys
-      : (await jira.findIssues({
+    const issueKeys: IssueKey[] =
+      (onlyIssueKeys.length ? onlyIssueKeys : (await jira.findIssues({
         jql: [
           ...new Set<IssueKey>([
             ...jiraIssueKeys,
@@ -408,7 +424,7 @@ const commands = {
           v.key,
           ...(v.fields && v.fields.parent ? [v.fields.parent.key] : []),
         ])
-      );
+      ) as IssueKey[]).filter((v) => !ignoreIssueKeys.includes(v));
     const jenkinsBuilds = await jenkins.getBuildsByIssues(new Set(issueKeys));
     const statusConfig = load<
       { order: string[]; icons: Record<string, string> }

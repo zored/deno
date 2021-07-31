@@ -56,6 +56,10 @@ export class JiraCookieListener {
         throw new Error(`siteId '${siteId}' is invalid`);
       }
 
+      if (cookies.includes("[object Object]")) {
+        return;
+      }
+
       const auth: {
         jira: { cookies: string };
         upsource: { authorization: string; cookies: string };
