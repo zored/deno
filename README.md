@@ -41,30 +41,30 @@ Supported languages:
 Ussage:
 
 - Create `dep-check.json` for your app:
-      ```json
-      {
-        "layers": {
-          "ddd": [
-            [
-              "app/src/http",
-              "app/src/cli"
-            ],
-            "app/src/service",
-            [
-              "app/src/domain",
-              "app/src/utils"
-            ]
-          ]
-        }
-      }
-      ```
+  ```json
+  {
+    "layers": {
+      "ddd": [
+        [
+          "app/src/http",
+          "app/src/cli"
+        ],
+        "app/src/service",
+        [
+          "app/src/domain",
+          "app/src/utils"
+        ]
+      ]
+    }
+  }
+  ```
 - Check dependencies:
-      ```sh
-      deno run --allow-read \
-          https://raw.githubusercontent.com/zored/deno/v0.0.72/src/dep-check.ts \
-              $PWD \
-              $PWD/dep-check.json
-      ```
+  ```sh
+  deno run --allow-read \
+      https://raw.githubusercontent.com/zored/deno/v0.0.72/src/dep-check.ts \
+          $PWD \
+          $PWD/dep-check.json
+  ```
 
 ## file-edit
 
@@ -131,22 +131,22 @@ Retrieve info from one files into another.
 Example:
 
 - Create source `some.xml`:
-      ```xml
-      <description>new text</description>
-      ```
+  ```xml
+  <description>new text</description>
+  ```
 - Create `README.md`:
-      ```md
-      # Description
-      <!-- info.ts.textFromXml(`some.xml`, `//description[1]`) { -->
-      old text
-      <!-- } -->
-      ```
+  ```md
+  # Description
+  <!-- info.ts.textFromXml(`some.xml`, `//description[1]`) { -->
+  old text
+  <!-- } -->
+  ```
 - Run:
-      ```sh
-      deno run --allow-read --allow-write \
-          https://raw.githubusercontent.com/zored/deno/v0.0.72/src/info.ts \
-              README.md
-      ```
+  ```sh
+  deno run --allow-read --allow-write \
+      https://raw.githubusercontent.com/zored/deno/v0.0.72/src/info.ts \
+          README.md
+  ```
 
 ## jira
 
@@ -183,49 +183,48 @@ sp -e -- db1 'db.people.count()'
 ```
 
 ### Example
-
 - Configure global config with proxies`~/shell-proxy.json`:
-      ```json
-      [
+  ```json
+  [
+    {
+      "globalAlias": "dev",
+      "pathAlias": "dev",
+      "type": "ssh",
+      "sshAlias": "dev",
+      "children": [
         {
-          "globalAlias": "dev",
-          "pathAlias": "dev",
-          "type": "ssh",
-          "sshAlias": "dev",
-          "children": [
-            {
-              "type": "docker",
-              "image": "mongo:4.2.0",
-              "children": {
-                "globalAlias": "my-db",
-                "pathAlias": "my-db",
-                "type": "mongo",
-                "uri": "mongodb://localhost:12345/dbname",
-                "slave": true,
-                "flags": {
-                  "authenticationDatabase": "admin"
-                }
-              }
+          "type": "docker",
+          "image": "mongo:4.2.0",
+          "children": {
+            "globalAlias": "my-db",
+            "pathAlias": "my-db",
+            "type": "mongo",
+            "uri": "mongodb://localhost:12345/dbname",
+            "slave": true,
+            "flags": {
+              "authenticationDatabase": "admin"
             }
-          ]
+          }
         }
       ]
-      ```
+    }
+  ]
+  ```
 
 - Create alias for `~/.bash_profile` and restart terminal:
-      ```bash
-      # Alias:
-      alias sp='deno run \
-        --allow-run --allow-env --allow-read --quiet --unstable \
-        https://raw.githubusercontent.com/zored/deno/v0.0.72/src/shell-proxy.ts \
-        --config $HOME/shell-proxy.json
-      '
+  ```bash
+  # Alias:
+  alias sp='deno run \
+    --allow-run --allow-env --allow-read --quiet --unstable \
+    https://raw.githubusercontent.com/zored/deno/v0.0.72/src/shell-proxy.ts \
+    --config $HOME/shell-proxy.json
+  '
 
-      # Autocomplete:
-      eval "$(sp completion)"
-      ```
+  # Autocomplete:
+  eval "$(sp completion)"
+  ```
 
 - Use it:
-      ```bash
-      sp
-      ```
+  ```bash
+  sp
+  ```
