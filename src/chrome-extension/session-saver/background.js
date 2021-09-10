@@ -6,12 +6,12 @@ const urlNeedles = {
   upsource: "https://upsource.",
 };
 
-function getRequestToken() {
+function getUpsourceRequestToken() {
   console.error({
     arguments,
     app: window.app,
   });
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     const check = async () => {
       const auth = window?.app?.getAuth();
       if (!auth) {
@@ -23,7 +23,7 @@ function getRequestToken() {
       debugger;
       resolve(token);
     };
-    check();
+    await check();
   });
 }
 
@@ -47,7 +47,7 @@ async function onload(e) {
           tabId,
           allFrames: true,
         },
-        function: getRequestToken,
+        function: getUpsourceRequestToken,
       });
       break;
     case "jira":
@@ -105,7 +105,7 @@ function chromeCookiesGetAllSecureByUrl(url) {
   });
 }
 
-const dateKey = "zoredDenoJiraListenCookiesDate";
+const dateKey = "zoredDenoJiralistenSessionDate";
 
 async function chromeStorageLocalGetKey() {
   return (await promisify(chrome.storage.local.get, chrome.storage.local)([

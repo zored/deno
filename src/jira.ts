@@ -2,12 +2,9 @@
 
 import { CommandArgs, Commands } from "./lib/command.ts";
 import { print } from "./lib/print.ts";
-import {
-  BrowserClientFactory,
-  IssueCacherFactory,
-  JiraCookieListener,
-} from "./lib/jira.ts";
+import { BrowserClientFactory, IssueCacherFactory } from "./lib/jira.ts";
 import { QueryObject } from "./lib/url.ts";
+import { SessionStorageServer } from "./lib/session.ts";
 
 const { env: { get: env } } = Deno;
 
@@ -36,8 +33,6 @@ new Commands({
       await jira.createIssue(query),
     );
   },
-  listenCookies: ({ _: [number, path] }) =>
-    new JiraCookieListener().start(parseInt(number + ""), path + ""),
   async fetch({ _: [method, path] }) {
     console.log(JSON.stringify(await jira.fetchSimple(method + "", path + "")));
   },

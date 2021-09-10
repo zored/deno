@@ -1,6 +1,6 @@
 {
-  "name": "Jira Cookie Sender",
-  "description": "Send cookies to Jira",
+  "name": "Zored Session Exporter",
+  "description": "Export session from browser to server",
   "version": "1.1",
   "manifest_version": 3,
   "background": {

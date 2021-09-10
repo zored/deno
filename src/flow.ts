@@ -30,17 +30,12 @@ import {
   UpsourceService,
   VoidMessage,
 } from "./lib/upsource.ts";
-import {
-  debugLog,
-  fromPairsArray,
-  promiseRecord,
-  sleepMs,
-  wait,
-} from "./lib/utils.ts";
+import { fromPairsArray, promiseRecord, sleepMs, wait } from "./lib/utils.ts";
 import { load } from "./lib/configs.ts";
 import { fromPairs, zip } from "../deps.ts";
 import { ConfigGitlabApiFactory, GitlabApi } from "./lib/gitlab.ts";
 import { serve } from "https://deno.land/std@0.94.0/http/server.ts";
+import { SessionStorageServer } from "./lib/session.ts";
 
 function getJiraIssueUrl(key: IssueKey): string {
   return BrowserClientFactory.get().getHost() + "/browse/" + key;
@@ -335,21 +330,21 @@ const commands = {
 
     const asyncResults = await promiseRecord({
       vcsRepoUrlByUpsourceProjectId: async () =>
-        fromPairs(
-          (await Promise.all(
-            load<{ projectIds: string[] }>("upsource").projectIds.map(
-              async (projectId) =>
-                (await upsourceApi.getProjectVcsLinks({
-                  projectId,
-                })).result.repo.map((v) => [v.id, v.url[0]]),
-            ),
-          )).flatMap((v) => v),
-        ),
+        (await Promise.all(
+          load<{ projectIds: string[] }>("upsource").projectIds.map(
+            async (projectId) =>
+              (await upsourceApi.getProjectVcsLinks({
+                projectId,
+              })).result.repo.map((v) => [v.id, v.url[0]]),
+          ),
+        )).flatMap((v) => v),
       jiraIssueKeys: async () =>
         (onlyIssueKeys.length ? [] : (await jira.findIssues({
           jql: BrowserClient.JQL_MY_UNRESOLVED_OR_ASSIGNED_TO_MERGE,
           fields: ["parent"],
-        })).map((v: any) => v.key)) as IssueKey[],
+        })).flatMap((v: any) =>
+          [v.key, v?.fields?.parent?.key].filter((v) => !!v)
+        )) as IssueKey[],
       reviewsWithRevisions: async () => {
         const reviews: Review[] = onlyIssueKeys.length
           ? (await upsource.getReviews({
@@ -373,7 +368,7 @@ const commands = {
       upsourceMyId: async () => await upsource.getMyId(),
     });
 
-    const vcsRepoUrlByUpsourceProjectId: Record<string, string> =
+    const vcsRepoUrlByUpsourceProjectId: [string, string][] =
       asyncResults.vcsRepoUrlByUpsourceProjectId;
     const jiraIssueKeys: IssueKey[] = asyncResults.jiraIssueKeys;
     const reviewsWithRevisions: [Review, RevisionInfo[]][] =
@@ -419,12 +414,10 @@ const commands = {
           ]),
         ].map((v) => `key = ${v}`).join(" OR "),
         fields: ["parent"],
-      })).flatMap((v: any) =>
-        debugLog([
-          v.key,
-          ...(v.fields && v.fields.parent ? [v.fields.parent.key] : []),
-        ])
-      ) as IssueKey[]).filter((v) => !ignoreIssueKeys.includes(v));
+      })).flatMap((v: any) => [
+        v.key,
+        ...(v.fields && v.fields.parent ? [v.fields.parent.key] : []),
+      ]) as IssueKey[]).filter((v) => !ignoreIssueKeys.includes(v));
     const jenkinsBuilds = await jenkins.getBuildsByIssues(new Set(issueKeys));
     const statusConfig = load<
       { order: string[]; icons: Record<string, string> }
@@ -446,7 +439,7 @@ const commands = {
         : f.fields.assignee.name;
     const humanPriority = (t: any) =>
       lastDevOrAssignee(t) === myJiraName ? 0 : 1;
-    const issues = (await Promise.all(
+    const issues: StatusIssue[] = (await Promise.all(
       issueKeys.map((key): Promise<StatusIssue> =>
         jira.getIssueFields(key, [
           "status",
@@ -490,26 +483,46 @@ const commands = {
           (humanPriority(a) - humanPriority(b)) ||
           (lastViewed(a) - lastViewed(b));
       });
+
+    const childByParent = issues.reduce((r, issue) => {
+      const parentKey = issue?.fields?.parent?.key;
+      if (parentKey) {
+        r[parentKey] = issue.key;
+      }
+      return r;
+    }, {} as Record<IssueKey, IssueKey>);
+
     const pipelinesByKey = fromPairs(
       await Promise.all(
         issues.map(async (t) => {
           const key = t.key;
-          const reviews = reviewsByKey[key] || [];
-          const projects = [
-            ...reviews
-              .flatMap((r) =>
-                projectIdsByReviewId[getStringReviewId(r.reviewId)] ??
-                  []
-              )
-              .map((upsourceProjectId) =>
-                vcsRepoUrlByUpsourceProjectId[upsourceProjectId]
-              )
-              .filter((v): v is string => !!v)
-              .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl)),
-            ...(issues.find((t) => t.key === key)?.fields.comment.comments ||
-              [])
-              .flatMap((c) => gitlab.parseProjects(c.body + "")),
-          ];
+
+          const projects = [key, childByParent[key]].filter((v) => !!v).flatMap(
+            (key) => [
+              ...(reviewsByKey[key] || [])
+                .flatMap((r) =>
+                  projectIdsByReviewId[getStringReviewId(r.reviewId)] ??
+                    []
+                )
+                .flatMap((upsourceProjectId) =>
+                  vcsRepoUrlByUpsourceProjectId
+                    .filter(([projectId]) => projectId === upsourceProjectId)
+                    .map(([, url]) => url)
+                )
+                .filter((v): v is string => !!v)
+                .map((vcsRepoUrl) => getGitlabProjectFromVcsUrl(vcsRepoUrl)),
+              ...(issues.find((t) => t.key === key)?.fields.comment.comments ||
+                [])
+                .flatMap((c) => gitlab.parseProjects(c.body + "")),
+            ],
+          );
+
+          console.error({
+            projects,
+            key,
+            child: childByParent[key],
+            childByParent,
+          });
 
           return [
             key,
@@ -770,5 +783,7 @@ const commands = {
       await shOpen(upsource.getReviewUrl(review.reviewId));
     }
   },
+  listenSession: ({ _: [port, path] }: { _: (string | number)[] }) =>
+    new SessionStorageServer().start(parseInt(port + ""), path + ""),
 };
 await runCommands(commands as any as CommandMap);

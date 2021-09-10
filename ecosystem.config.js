@@ -3,6 +3,7 @@
 const c = getConfig(process.argv);
 const cfg = `--zored-deno=${c.config} --zored-deno-merge=${c.jira}`;
 const run = `run -A ${c.cert ? `--cert=${c.cert}` : ''}`
+const runUnstable = `${run} --unstable`;
 console.log({ cfg });
 
 module.exports = {
@@ -15,17 +16,17 @@ module.exports = {
     restart_delay: 10000,
     time: true,
   }, {
-    name: "Jira Cookie Listener",
+    name: "Session listener",
     interpreter: "deno",
-    interpreterArgs: run,
-    script: "src/jira.ts",
-    args: `listenCookies ${cfg} 11536 ${c.jira}`,
+    interpreterArgs: runUnstable,
+    script: "src/flow.ts",
+    args: `listenSession ${cfg} 11536 ${c.jira}`,
     restart_delay: 10000,
     time: true,
   }, {
     name: "Flow status server",
     interpreter: "deno",
-    interpreterArgs: `${run} --unstable`,
+    interpreterArgs: runUnstable,
     script: "src/flow.ts",
     args: `statusServe ${cfg}`,
     restart_delay: 10000,

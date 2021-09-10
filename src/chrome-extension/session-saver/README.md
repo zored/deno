@@ -1,11 +1,12 @@
-# Jira Cookie Sender
+# Zored Session Exporter
 
-This code is written to handle Jira API via browser cookies.
+This code is written to send session data to server (cookies, local storage
+data, etc.).
 
 - Add this folder in Chrome Extensions developer mode.
 - `pm2 start ecosystem.config.js -- --config=${ROB_DIR}/zored_deno.json --jira=${ROB_DIR}/zored_deno.jira.json`
   will start daemon:
-  - When you will visit Jira extension will send cookies to daemon.
-  - Daemon will save cookies to file.
-  - Therefore `./src/jira.ts` commands will always
+  - When you will visit specified site then extension will export data to
+    server.
+  - Predefined server stores session to file.
 - See [background file](./background.js) to validate logic.
