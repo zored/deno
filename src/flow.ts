@@ -405,6 +405,11 @@ const commands = {
       ),
       true,
     );
+
+    console.error({
+      jiraIssueKeys,
+      reviewsWithKeys,
+    });
     const issueKeys: IssueKey[] =
       (onlyIssueKeys.length ? onlyIssueKeys : (await jira.findIssues({
         jql: [
@@ -516,13 +521,6 @@ const commands = {
                 .flatMap((c) => gitlab.parseProjects(c.body + "")),
             ],
           );
-
-          console.error({
-            projects,
-            key,
-            child: childByParent[key],
-            childByParent,
-          });
 
           return [
             key,

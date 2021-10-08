@@ -78,7 +78,7 @@ function fillStatus(s) {
           300,
         ),
         (v.pipelines ?? []).map((v) =>
-          aWarn(v.status, v.status !== "success", v.web_url)
+          aWarn(v.status, !["success", "manual"].includes(v.status), v.web_url)
         ).join(" "),
         (v.reviews ?? []).map((v) =>
           aWarn(v.completed ? "готово" : "ревью", !v.completed, v.url)

@@ -157,8 +157,11 @@ export class JiraError implements Error {
 export class BrowserClient {
   public static JQL_LAST_VIEWED =
     "lastViewed is not empty order by lastViewed desc";
-  public static JQL_MY_UNRESOLVED_OR_ASSIGNED_TO_MERGE =
-    '(assignee = currentUser() AND resolution = Unresolved AND status != Done) OR (assignee was currentUser() and status = "To Merge") order by updated DESC';
+  public static JQL_MY_UNRESOLVED_OR_ASSIGNED_TO_MERGE = `
+      (assignee = currentUser() AND resolution = Unresolved AND status not in (Done, Closed)) OR
+      (assignee was currentUser() and status = "To Merge")
+      order by updated DESC
+    `;
 
   constructor(private readonly host: string, private readonly cookie: string) {
     this.host = this.host.replace(/\/+$/, "");
