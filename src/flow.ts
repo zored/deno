@@ -406,10 +406,6 @@ const commands = {
       true,
     );
 
-    console.error({
-      jiraIssueKeys,
-      reviewsWithKeys,
-    });
     const issueKeys: IssueKey[] =
       (onlyIssueKeys.length ? onlyIssueKeys : (await jira.findIssues({
         jql: [
@@ -441,7 +437,7 @@ const commands = {
     const lastDevOrAssignee = (f: StatusIssue) =>
       f.developers.length
         ? f.developers.slice(-1)[0].name
-        : f.fields.assignee.name;
+        : f.fields?.assignee?.name;
     const humanPriority = (t: any) =>
       lastDevOrAssignee(t) === myJiraName ? 0 : 1;
     const issues: StatusIssue[] = (await Promise.all(
