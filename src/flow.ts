@@ -319,7 +319,7 @@ const commands = {
     const gitlab = getGitlab(),
       jira = getJira(),
       upsourceApi = createUpsourceApi(),
-      jenkins = getJenkins(),
+      // jenkins = getJenkins(),
       upsource = new UpsourceService(upsourceApi);
 
     const configIgnoreIssues =
@@ -419,7 +419,7 @@ const commands = {
         v.key,
         ...(v.fields && v.fields.parent ? [v.fields.parent.key] : []),
       ]) as IssueKey[]).filter((v) => !ignoreIssueKeys.includes(v));
-    const jenkinsBuilds = await jenkins.getBuildsByIssues(new Set(issueKeys));
+    const jenkinsBuilds: any[] = []; // await jenkins.getBuildsByIssues(new Set(issueKeys));
     const statusConfig = load<
       { order: string[]; icons: Record<string, string> }
     >("jira.status");
