@@ -1,4 +1,4 @@
-import { BasicAuthFetcher, Fetcher, parseJson } from "./utils.ts";
+import { BasicAuthFetcher, debugLog, Fetcher, parseJson } from "./utils.ts";
 import { load } from "./configs.ts";
 
 export class KibanaApi {
@@ -40,9 +40,9 @@ export class KibanaApi {
 }
 
 export class KibanaApiFactory {
-  create(): KibanaApi {
+  create(host: string): KibanaApi {
     const c = load<{ host: string; cookiePath: string; login: string }>(
-      "kibana",
+      `kibana.hosts.${host}`,
     );
     return new KibanaApi(
       c.host,
