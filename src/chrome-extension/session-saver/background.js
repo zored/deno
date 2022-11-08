@@ -1,4 +1,5 @@
 "use strict";
+
 chrome.webNavigation.onCompleted.addListener(onload);
 
 const urlNeedles = {
@@ -7,20 +8,24 @@ const urlNeedles = {
 };
 
 function getUpsourceRequestToken() {
-  console.error({
-    arguments,
-    app: window.app,
-  });
   return new Promise(async (resolve) => {
     const check = async () => {
       const auth = window?.app?.getAuth();
+      const log = (v) => console.log("session-saver background.js", v);
+      const retry = (v) => {
+        // log(v)
+        return setTimeout(check, 5000);
+      };
       if (!auth) {
-        setTimeout(check, 200);
+        retry({ m: "no auth" });
         return;
       }
       const token = await auth.requestToken();
-      console.error({ token });
-      debugger;
+      if (typeof token !== "string") {
+        retry({ m: "invalid token", token });
+        return;
+      }
+      log({ m: "ok", token });
       resolve(token);
     };
     await check();
@@ -43,33 +48,29 @@ async function onload(e) {
   switch (siteId) {
     case "upsource":
       body = await chrome.scripting.executeScript({
-        target: {
-          tabId,
-          allFrames: true,
-        },
-        function: getUpsourceRequestToken,
+        target: { tabId, allFrames: true },
+        world: "MAIN",
+        func: getUpsourceRequestToken,
       });
+      if (Array.isArray(body)) {
+        body = body.find((v) => !!v.result)?.result;
+      }
       break;
     case "jira":
       body = (await chromeCookiesGetAllSecureByUrl(url))
         .map((c) => `${c.name}=${c.value}`).join("; ");
       break;
     default:
-      console.debug({ url });
       return;
   }
-
-  console.error({ body });
 
   const result = await (await fetch(`http://localhost:11536?siteId=${siteId}`, {
     method: "POST",
     body,
   })).text();
   if (result !== "ok") {
-    console.error("could not write cookies", result);
     return;
   }
-  console.info("sent");
 }
 
 async function shouldUpdate(url) {
@@ -91,7 +92,6 @@ async function shouldUpdate(url) {
     hour = 1000 * 60 * 60;
 
   if (now.getTime() - date.getTime() < hour) {
-    console.debug(["less than 1 hour passed", date]);
     return false;
   }
 

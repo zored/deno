@@ -778,6 +778,7 @@ const commands = {
     }
   },
   listenSession: ({ _: [port, path] }: { _: (string | number)[] }) =>
-    new SessionStorageServer().start(parseInt(port + ""), path + ""),
+    new SessionStorageServer()
+      .start(parseInt(port + ""), path + ""),
 };
 await runCommands(commands as any as CommandMap);

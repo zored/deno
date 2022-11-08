@@ -1,7 +1,15 @@
 import { serve } from "../../deps.ts";
+import { debugLog } from "./utils.ts";
 
 export class SessionStorageServer {
   async start(port: number, path: string) {
+    try {
+      await this._start(port, path);
+    } catch (e) {
+      debugLog({ i: "there was an error while session storage running", e });
+    }
+  }
+  async _start(port: number, path: string) {
     if (!port) {
       throw new Error("specify port");
     }
@@ -25,7 +33,7 @@ export class SessionStorageServer {
       }
 
       if (cookies.includes("[object Object]")) {
-        return;
+        continue;
       }
 
       const auth: {
