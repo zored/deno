@@ -1,6 +1,7 @@
 import { SemVer } from "../../deps.ts";
 import { Runner } from "./command.ts";
 import { JsonFile, load } from "./configs.ts";
+import { debugLog } from "./utils.ts";
 
 const { readTextFile, writeTextFile, remove } = Deno;
 
